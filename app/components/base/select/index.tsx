@@ -48,7 +48,7 @@ const Select: FC<ISelectProps> = ({
     if (existed) { defaultSelect = existed }
 
     setSelectedItem(defaultSelect)
-  }, [defaultValue])
+  }, [defaultValue, items])
 
   const filteredItems: Item[]
     = query === ''
@@ -146,7 +146,7 @@ const SimpleSelect: FC<ISelectProps> = ({
     if (existed) { defaultSelect = existed }
 
     setSelectedItem(defaultSelect)
-  }, [defaultValue])
+  }, [defaultValue, items])
 
   return (
     <Listbox

@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
 import cn from 'classnames'
 
 interface IProps {
@@ -14,39 +14,27 @@ interface IProps {
   onKeyUp?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
 }
 
-const AutoHeightTextarea = forwardRef(
+const AutoHeightTextarea = forwardRef<HTMLTextAreaElement, IProps>(
   (
     { value, onChange, placeholder, className, minHeight = 36, maxHeight = 96, autoFocus, controlFocus, onKeyDown, onKeyUp }: IProps,
-    outerRef: any,
+    outerRef,
   ) => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const ref = outerRef || useRef<HTMLTextAreaElement>(null)
+    const innerRef = useRef<HTMLTextAreaElement>(null)
+    useImperativeHandle(outerRef, () => innerRef.current!, [])
 
-    const doFocus = () => {
-      if (ref.current) {
-        ref.current.setSelectionRange(value.length, value.length)
-        ref.current.focus()
-        return true
-      }
-      return false
-    }
-
-    const focus = () => {
-      if (!doFocus()) {
-        let hasFocus = false
-        const runId = setInterval(() => {
-          hasFocus = doFocus()
-          if (hasFocus) { clearInterval(runId) }
-        }, 100)
-      }
-    }
+    const focus = useCallback(() => {
+      const textarea = innerRef.current
+      if (!textarea) { return }
+      textarea.setSelectionRange(value.length, value.length)
+      textarea.focus()
+    }, [value.length])
 
     useEffect(() => {
       if (autoFocus) { focus() }
-    }, [])
+    }, [autoFocus, focus])
     useEffect(() => {
       if (controlFocus) { focus() }
-    }, [controlFocus])
+    }, [controlFocus, focus])
 
     return (
       <div className='relative'>
@@ -54,7 +42,7 @@ const AutoHeightTextarea = forwardRef(
           {!value ? placeholder : value.replace(/\n$/, '\n ')}
         </div>
         <textarea
-          ref={ref}
+          ref={innerRef}
           autoFocus={autoFocus}
           className={cn(className, 'absolute inset-0 resize-none overflow-hidden')}
           placeholder={placeholder}

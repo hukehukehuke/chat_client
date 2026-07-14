@@ -1,6 +1,5 @@
 import type { IOnCompleted, IOnData, IOnError, IOnFile, IOnMessageEnd, IOnMessageReplace, IOnNodeFinished, IOnNodeStarted, IOnThought, IOnWorkflowFinished, IOnWorkflowStarted } from './base'
 import { get, post, ssePost } from './base'
-import type { Feedbacktype } from '@/types/app'
 
 export const sendChatMessage = async (
   body: Record<string, any>,
@@ -51,10 +50,6 @@ export const fetchChatList = async (conversationId: string) => {
 // init value. wait for server update
 export const fetchAppParams = async () => {
   return get('parameters')
-}
-
-export const updateFeedback = async ({ url, body }: { url: string, body: Feedbacktype }) => {
-  return post(url, { body })
 }
 
 export const generationConversationName = async (id: string) => {

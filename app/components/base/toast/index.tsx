@@ -28,7 +28,6 @@ export const useToastContext = () => useContext(ToastContext)
 
 const Toast = ({
   type = 'info',
-  duration,
   message,
   children,
 }: IToastProps) => {
@@ -93,12 +92,12 @@ export const ToastProvider = ({
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    if (mounted) {
-      setTimeout(() => {
-        setMounted(false)
-      }, params.duration || defaultDuring)
-    }
-  }, [mounted])
+    if (!mounted) { return }
+    const timeoutId = globalThis.setTimeout(() => {
+      setMounted(false)
+    }, params.duration || defaultDuring)
+    return () => globalThis.clearTimeout(timeoutId)
+  }, [mounted, params.duration])
 
   return <ToastContext.Provider value={{
     notify: (props) => {
@@ -123,7 +122,8 @@ Toast.notify = ({
     root.render(<Toast type={type} message={message} duration={duration} />)
     document.body.appendChild(holder)
     setTimeout(() => {
-      if (holder) { holder.remove() }
+      root.unmount()
+      holder.remove()
     }, duration || defaultDuring)
   }
 }

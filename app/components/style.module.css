@@ -1,4 +1,9 @@
 .mainSurface {
+  --app-header-height: 48px;
+  --app-sidebar-width: 0px;
+  --chat-composer-max-width: 800px;
+  --chat-content-max-width: 794px;
+
   position: relative;
   isolation: isolate;
   background-color: #fff;
@@ -7,10 +12,10 @@
 .mainSurface::before {
   content: '';
   position: fixed;
-  top: 48px;
+  top: var(--app-header-height);
   right: 0;
   bottom: 0;
-  left: 0;
+  left: var(--app-sidebar-width);
   z-index: 0;
   pointer-events: none;
   opacity: 0;
@@ -30,15 +35,25 @@
   opacity: 1;
 }
 
+.chatContent {
+  position: relative;
+  z-index: 1;
+  flex-grow: 1;
+  width: min(100%, var(--chat-content-max-width));
+  max-width: 100%;
+  margin: 0 auto 0.875rem;
+  padding-bottom: 180px;
+}
+
 @media (min-width: 640px) {
-  .mainSurface::before {
-    left: 192px;
+  .mainSurface {
+    --app-sidebar-width: 192px;
   }
 }
 
 @media (min-width: 769px) {
-  .mainSurface::before {
-    left: 244px;
+  .mainSurface {
+    --app-sidebar-width: 244px;
   }
 }
 

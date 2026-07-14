@@ -17,6 +17,14 @@ const translation = {
     like: 'like',
     dislike: 'dislike',
     ok: 'D\'accord',
+    copy: 'Copier',
+    copied: 'Copié',
+    copyAnswer: 'Copier la réponse',
+    copiedAnswer: 'Réponse copiée',
+  },
+  chat: {
+    greeting: 'Comment puis-je vous aider ?',
+    inputPlaceholder: 'Écrivez un message…',
   },
   imageUploader: {
     uploadFromComputer: 'Télécharger depuis l\'ordinateur',

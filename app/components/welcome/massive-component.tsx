@@ -69,4 +69,3 @@ export const EditBtn = ({ className, onClick }: { className?: string, onClick: (
     </div>
   )
 }
-

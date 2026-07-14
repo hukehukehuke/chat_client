@@ -1,12 +1,12 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useCallback, useRef } from 'react'
-import { iframeEvents, type IframeCommand, type IframeEvent } from '@/hooks/useIframeBridge'
+import { getIframeCommandPayload, iframeEvents, type IframeCommand, type IframeEvent } from '@/hooks/useIframeBridge'
 
 interface IframeContextValue {
   isEmbedded: boolean
   sendEvent: (event: IframeEvent) => void
-  registerHandler: (type: string, handler: (payload: any) => void) => void
+  registerHandler: (type: string, handler: (payload: unknown) => void) => void
   unregisterHandler: (type: string) => void
 }
 
@@ -20,7 +20,7 @@ const IframeContext = createContext<IframeContextValue>({
 export const useIframeContext = () => useContext(IframeContext)
 
 export function IframeProvider({ children }: { children: React.ReactNode }) {
-  const handlersRef = useRef<Map<string, (payload: any) => void>>(new Map())
+  const handlersRef = useRef<Map<string, (payload: unknown) => void>>(new Map())
   const isEmbedded = typeof window !== 'undefined' && window.parent !== window
 
   const sendEvent = useCallback((event: IframeEvent) => {
@@ -29,7 +29,7 @@ export function IframeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const registerHandler = useCallback((type: string, handler: (payload: any) => void) => {
+  const registerHandler = useCallback((type: string, handler: (payload: unknown) => void) => {
     handlersRef.current.set(type, handler)
   }, [])
 
@@ -39,10 +39,11 @@ export function IframeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent<IframeCommand>) => {
-      if (!event.data || typeof event.data !== 'object' || !event.data.type) return
+      if (event.source !== window.parent) { return }
+      if (!event.data || typeof event.data !== 'object' || !event.data.type) { return }
       const handler = handlersRef.current.get(event.data.type)
       if (handler) {
-        handler(event.data.payload)
+        handler(getIframeCommandPayload(event.data))
       }
     }
 

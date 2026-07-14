@@ -17,6 +17,14 @@ const translation = {
     like: 'thích',
     dislike: 'không thích',
     ok: 'OK',
+    copy: 'Sao chép',
+    copied: 'Đã sao chép',
+    copyAnswer: 'Sao chép câu trả lời',
+    copiedAnswer: 'Đã sao chép câu trả lời',
+  },
+  chat: {
+    greeting: 'Tôi có thể giúp gì cho bạn?',
+    inputPlaceholder: 'Nhập tin nhắn…',
   },
   imageUploader: {
     uploadFromComputer: 'Tải lên từ máy tính',

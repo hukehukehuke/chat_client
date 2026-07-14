@@ -6,13 +6,13 @@ import type { IChatItem } from '../type'
 import StreamdownMarkdown from '@/app/components/base/streamdown-markdown'
 import ImageGallery from '@/app/components/base/image-gallery'
 
-type IQuestionProps = Pick<IChatItem, 'id' | 'content' | 'useCurrentUserAvatar'> & {
+type IQuestionProps = Pick<IChatItem, 'content'> & {
   imgSrcs?: string[]
 }
 
-const Question: FC<IQuestionProps> = ({ id, content, imgSrcs }) => {
+const Question: FC<IQuestionProps> = ({ content, imgSrcs }) => {
   return (
-    <div className='flex w-full items-start justify-end' key={id}>
+    <div className='flex w-full items-start justify-end'>
       <div className='mobile:max-w-[88%] tablet:max-w-[74%] break-words rounded-[28px] bg-[#f0eeee] px-5 py-3 text-base leading-8 text-[#1f1f1f] tablet:text-[18px]'>
         {imgSrcs && imgSrcs.length > 0 && (
           <ImageGallery srcs={imgSrcs} />

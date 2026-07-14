@@ -1,6 +1,6 @@
 'use client'
 import type { FC } from 'react'
-import React, { useEffect, useRef } from 'react'
+import React, { useRef } from 'react'
 import cn from 'classnames'
 import { useTranslation } from 'react-i18next'
 import Textarea from 'rc-textarea'
@@ -8,7 +8,6 @@ import { PaperAirplaneIcon } from '@heroicons/react/24/outline'
 import s from './style.module.css'
 import Answer from './answer'
 import Question from './question'
-import type { FeedbackFunc } from './type'
 import type { ChatItem, VisionFile, VisionSettings } from '@/types/app'
 import { TransferMethod } from '@/types/app'
 import Tooltip from '@/app/components/base/tooltip'
@@ -23,45 +22,30 @@ import { getProcessedFiles } from '@/app/components/base/file-uploader-in-attach
 export interface IChatProps {
   chatList: ChatItem[]
   /**
-   * Whether to display the editing area and rating status
-   */
-  feedbackDisabled?: boolean
-  /**
    * Whether to display the input area
    */
   isHideSendInput?: boolean
-  onFeedback?: FeedbackFunc
   checkCanSend?: () => boolean
   onSend?: (message: string, files: VisionFile[]) => void
-  useCurrentUserAvatar?: boolean
   isResponding?: boolean
-  controlClearQuery?: number
   visionConfig?: VisionSettings
   fileConfig?: FileUpload
 }
 
 const Chat: FC<IChatProps> = ({
   chatList,
-  feedbackDisabled = false,
   isHideSendInput = false,
-  onFeedback,
   checkCanSend,
   onSend = () => { },
-  useCurrentUserAvatar,
   isResponding,
-  controlClearQuery,
   visionConfig,
   fileConfig,
 }) => {
   const { t } = useTranslation()
   const { notify } = Toast
   const isUseInputMethod = useRef(false)
-  const hasConversationMessages = chatList.some(item => item.isAnswer === false)
-  const inputPlaceholderKey = 'common.chat.inputPlaceholder'
-  const translatedInputPlaceholder = t(inputPlaceholderKey) as string
-  const inputPlaceholder = translatedInputPlaceholder === inputPlaceholderKey
-    ? '输入消息…'
-    : translatedInputPlaceholder
+  const hasConversationMessages = chatList.length > 0
+  const inputPlaceholder = t('common.chat.inputPlaceholder') as string
 
   const [query, setQuery] = React.useState('')
   const queryRef = useRef('')
@@ -85,12 +69,6 @@ const Chat: FC<IChatProps> = ({
     return true
   }
 
-  useEffect(() => {
-    if (controlClearQuery) {
-      setQuery('')
-      queryRef.current = ''
-    }
-  }, [controlClearQuery])
   const {
     files,
     onUpload,
@@ -156,7 +134,7 @@ const Chat: FC<IChatProps> = ({
   }
 
   return (
-    <div className={cn(!feedbackDisabled && 'px-3.5', s.chatRoot)}>
+    <div className={cn('px-3.5', s.chatRoot)}>
       {/* Chat List */}
       <div className={cn('h-full space-y-10 pt-8 tablet:pt-10', !hasConversationMessages && s.emptyChatList)}>
         {chatList.map((item) => {
@@ -165,8 +143,6 @@ const Chat: FC<IChatProps> = ({
             return <Answer
               key={item.id}
               item={item}
-              feedbackDisabled={feedbackDisabled}
-              onFeedback={onFeedback}
               isResponding={isResponding && isLast}
               suggestionClick={suggestionClick}
             />
@@ -174,9 +150,7 @@ const Chat: FC<IChatProps> = ({
           return (
             <Question
               key={item.id}
-              id={item.id}
               content={item.content}
-              useCurrentUserAvatar={useCurrentUserAvatar}
               imgSrcs={(item.message_files && item.message_files?.length > 0) ? item.message_files.map(item => item.url) : []}
             />
           )
@@ -191,7 +165,7 @@ const Chat: FC<IChatProps> = ({
                 hasConversationMessages && s.emptyGreetingHidden,
               )}
             >
-              有什么我可以帮你的？
+              {t('common.chat.greeting')}
             </div>
             <div
               className={cn(

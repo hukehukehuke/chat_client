@@ -9,8 +9,8 @@ import Toast from '@/app/components/base/toast'
 import Sidebar from '@/app/components/sidebar'
 import ConfigSence from '@/app/components/config-scence'
 import Header from '@/app/components/header'
-import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback } from '@/service'
-import type { ChatItem, ConversationItem, Feedbacktype, PromptConfig, VisionFile, VisionSettings } from '@/types/app'
+import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage } from '@/service'
+import type { ChatItem, ConversationItem, PromptConfig, VisionFile, VisionSettings } from '@/types/app'
 import type { FileUpload } from '@/app/components/base/file-uploader-in-attachment/types'
 import { Resolution, TransferMethod, WorkflowRunningStatus } from '@/types/app'
 import Chat from '@/app/components/chat'
@@ -53,7 +53,7 @@ const Main: FC<IMainProps> = () => {
 
   useEffect(() => {
     if (APP_INFO?.title) { document.title = `${APP_INFO.title} - 技术支持` }
-  }, [APP_INFO?.title])
+  }, [])
 
   // onData change thought (the produce obj). https://github.com/immerjs/immer/issues/576
   useEffect(() => {
@@ -82,6 +82,21 @@ const Main: FC<IMainProps> = () => {
     setNewConversationInfo,
     setExistConversationInfo,
   } = useConversation()
+
+  const [isResponding, { setTrue: setRespondingTrue, setFalse: setRespondingFalse }] = useBoolean(false)
+  const requestGenerationRef = useRef(0)
+  const activeRequestControllerRef = useRef<AbortController | null>(null)
+  const cancelActiveResponse = () => {
+    requestGenerationRef.current += 1
+    activeRequestControllerRef.current?.abort()
+    activeRequestControllerRef.current = null
+    setRespondingFalse()
+  }
+
+  useEffect(() => () => {
+    requestGenerationRef.current += 1
+    activeRequestControllerRef.current?.abort()
+  }, [])
 
   const [conversationIdChangeBecauseOfNew, setConversationIdChangeBecauseOfNew, getConversationIdChangeBecauseOfNew] = useGetState(false)
   const [isChatStarted, { setTrue: setChatStarted, setFalse: setChatNotStarted }] = useBoolean(false)
@@ -163,15 +178,18 @@ const Main: FC<IMainProps> = () => {
       setChatList(generateNewChatListWithOpenStatement('', newConversationInputs))
     }
   }
-  useEffect(handleConversationSwitch, [currConversationId, inited])
+  // Conversation hydration is intentionally driven by identity changes only.
+  useEffect(handleConversationSwitch, [currConversationId, inited]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConversationIdChange = (id: string) => {
+    if (id !== getCurrConversationId() || id === '-1') { cancelActiveResponse() }
+
     if (id === '-1') {
       createNewChat()
       setConversationIdChangeBecauseOfNew(true)
       setChatNotStarted()
       setChatList([])
-      setControlClearQuery(value => value + 1)
+      setChatResetKey(value => value + 1)
     }
     else {
       setConversationIdChangeBecauseOfNew(false)
@@ -199,7 +217,7 @@ const Main: FC<IMainProps> = () => {
   }, [chatList, currConversationId])
   // user can not edit inputs if user had send message
   const canEditInputs = !chatList.some(item => item.isAnswer === false) && isNewConversation
-  const hasConversationMessages = chatList.some(item => item.isAnswer === false)
+  const hasConversationMessages = chatList.length > 0
   const isGeminiEmptyState = hasSetInputs && !hasConversationMessages
   const createNewChat = () => {
     // if new chat is already exist, do not create new chat
@@ -305,10 +323,8 @@ const Main: FC<IMainProps> = () => {
         }
       }
     })()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- application configuration is loaded once on mount
 
-  const [isResponding, { setTrue: setRespondingTrue, setFalse: setRespondingFalse }] = useBoolean(false)
-  const [abortController, setAbortController] = useState<AbortController | null>(null)
   const { notify } = Toast
   const logError = (message: string) => {
     notify({ type: 'error', message })
@@ -333,12 +349,7 @@ const Main: FC<IMainProps> = () => {
     return true
   }
 
-  const [controlClearQuery, setControlClearQuery] = useState(0)
-  const [openingSuggestedQuestions, setOpeningSuggestedQuestions] = useState<string[]>([])
-  const [messageTaskId, setMessageTaskId] = useState('')
-  const [hasStopResponded, setHasStopResponded, getHasStopResponded] = useGetState(false)
-  const [isRespondingConIsCurrCon, setIsRespondingConCurrCon, getIsRespondingConIsCurrCon] = useGetState(true)
-  const [userQuery, setUserQuery] = useState('')
+  const [chatResetKey, setChatResetKey] = useState(0)
 
   const updateCurrentQA = ({
     responseItem,
@@ -448,14 +459,22 @@ const Main: FC<IMainProps> = () => {
     let hasSetResponseId = false
 
     const prevTempNewConversationId = getCurrConversationId() || '-1'
+    const requestGeneration = ++requestGenerationRef.current
+    const isCurrentResponse = () => requestGenerationRef.current === requestGeneration
     let tempNewConversationId = ''
 
     setRespondingTrue()
     sendChatMessage(data, {
       getAbortController: (abortController) => {
-        setAbortController(abortController)
+        if (!isCurrentResponse()) {
+          abortController.abort()
+          return
+        }
+        activeRequestControllerRef.current = abortController
       },
-      onData: (message: string, isFirstMessage: boolean, { conversationId: newConversationId, messageId, taskId }: any) => {
+      onData: (message: string, isFirstMessage: boolean, { conversationId: newConversationId, messageId }: any) => {
+        if (!isCurrentResponse() || prevTempNewConversationId !== getCurrConversationId()) { return }
+
         if (!isAgentMode) {
           responseItem.content = responseItem.content + message
         }
@@ -470,12 +489,6 @@ const Main: FC<IMainProps> = () => {
 
         if (isFirstMessage && newConversationId) { tempNewConversationId = newConversationId }
 
-        setMessageTaskId(taskId)
-        // has switched to other conversation
-        if (prevTempNewConversationId !== getCurrConversationId()) {
-          setIsRespondingConCurrCon(false)
-          return
-        }
         updateCurrentQA({
           responseItem,
           questionId,
@@ -484,24 +497,40 @@ const Main: FC<IMainProps> = () => {
         })
       },
       async onCompleted(hasError?: boolean) {
-        if (hasError) { return }
+        if (!isCurrentResponse()) { return }
+        if (hasError) {
+          activeRequestControllerRef.current = null
+          setRespondingFalse()
+          return
+        }
 
         if (getConversationIdChangeBecauseOfNew()) {
-          const { data: allConversations }: any = await fetchConversations()
-          const newItem: any = await generationConversationName(allConversations[0].id)
+          try {
+            const { data: allConversations }: any = await fetchConversations()
+            if (!isCurrentResponse()) { return }
+            const newItem: any = await generationConversationName(allConversations[0].id)
+            if (!isCurrentResponse()) { return }
 
-          const newAllConversations = produce(allConversations, (draft: any) => {
-            draft[0].name = newItem.name
-          })
-          setConversationList(newAllConversations as any)
+            const newAllConversations = produce(allConversations, (draft: any) => {
+              draft[0].name = newItem.name
+            })
+            setConversationList(newAllConversations as any)
+          }
+          catch {
+            // The request layer already reports the error. Conversation finalisation
+            // must continue so the UI does not remain stuck in a responding state.
+          }
         }
+        if (!isCurrentResponse()) { return }
         setConversationIdChangeBecauseOfNew(false)
         resetNewConversationInputs()
         setChatNotStarted()
-        setCurrConversationId(tempNewConversationId, APP_ID, true)
+        if (tempNewConversationId) { setCurrConversationId(tempNewConversationId, APP_ID, true) }
+        activeRequestControllerRef.current = null
         setRespondingFalse()
       },
       onFile(file) {
+        if (!isCurrentResponse()) { return }
         const lastThought = responseItem.agent_thoughts?.[responseItem.agent_thoughts?.length - 1]
         if (lastThought) { lastThought.message_files = [...(lastThought as any).message_files, { ...file }] }
 
@@ -513,6 +542,8 @@ const Main: FC<IMainProps> = () => {
         })
       },
       onThought(thought) {
+        if (!isCurrentResponse() || prevTempNewConversationId !== getCurrConversationId()) { return false }
+
         isAgentMode = true
         const response = responseItem as any
         if (thought.message_id && !hasSetResponseId) {
@@ -535,12 +566,6 @@ const Main: FC<IMainProps> = () => {
             responseItem.agent_thoughts!.push(thought)
           }
         }
-        // has switched to other conversation
-        if (prevTempNewConversationId !== getCurrConversationId()) {
-          setIsRespondingConCurrCon(false)
-          return false
-        }
-
         updateCurrentQA({
           responseItem,
           questionId,
@@ -549,6 +574,7 @@ const Main: FC<IMainProps> = () => {
         })
       },
       onMessageEnd: (messageEnd) => {
+        if (!isCurrentResponse()) { return }
         if (messageEnd.metadata?.annotation_reply) {
           responseItem.id = messageEnd.id
           responseItem.annotation = ({
@@ -581,6 +607,7 @@ const Main: FC<IMainProps> = () => {
         setChatList(newListWithAnswer)
       },
       onMessageReplace: (messageReplace) => {
+        if (!isCurrentResponse()) { return }
         setChatList(produce(
           getChatList(),
           (draft) => {
@@ -591,14 +618,17 @@ const Main: FC<IMainProps> = () => {
         ))
       },
       onError() {
+        if (!isCurrentResponse()) { return }
+        activeRequestControllerRef.current = null
         setRespondingFalse()
-        // role back placeholder answer
+        // Roll back only this request's placeholder answer.
         setChatList(produce(getChatList(), (draft) => {
-          draft.splice(draft.findIndex(item => item.id === placeholderAnswerId), 1)
+          const placeholderIndex = draft.findIndex(item => item.id === placeholderAnswerId)
+          if (placeholderIndex >= 0) { draft.splice(placeholderIndex, 1) }
         }))
       },
-      onWorkflowStarted: ({ workflow_run_id, task_id }) => {
-        // taskIdRef.current = task_id
+      onWorkflowStarted: ({ workflow_run_id }) => {
+        if (!isCurrentResponse()) { return }
         responseItem.workflow_run_id = workflow_run_id
         responseItem.workflowProcess = {
           status: WorkflowRunningStatus.Running,
@@ -606,6 +636,7 @@ const Main: FC<IMainProps> = () => {
         }
         setChatList(produce(getChatList(), (draft) => {
           const currentIndex = draft.findIndex(item => item.id === responseItem.id)
+          if (currentIndex < 0) { return }
           draft[currentIndex] = {
             ...draft[currentIndex],
             ...responseItem,
@@ -613,9 +644,11 @@ const Main: FC<IMainProps> = () => {
         }))
       },
       onWorkflowFinished: ({ data }) => {
+        if (!isCurrentResponse()) { return }
         responseItem.workflowProcess!.status = data.status as WorkflowRunningStatus
         setChatList(produce(getChatList(), (draft) => {
           const currentIndex = draft.findIndex(item => item.id === responseItem.id)
+          if (currentIndex < 0) { return }
           draft[currentIndex] = {
             ...draft[currentIndex],
             ...responseItem,
@@ -623,9 +656,11 @@ const Main: FC<IMainProps> = () => {
         }))
       },
       onNodeStarted: ({ data }) => {
+        if (!isCurrentResponse()) { return }
         responseItem.workflowProcess!.tracing!.push(data as any)
         setChatList(produce(getChatList(), (draft) => {
           const currentIndex = draft.findIndex(item => item.id === responseItem.id)
+          if (currentIndex < 0) { return }
           draft[currentIndex] = {
             ...draft[currentIndex],
             ...responseItem,
@@ -633,10 +668,13 @@ const Main: FC<IMainProps> = () => {
         }))
       },
       onNodeFinished: ({ data }) => {
+        if (!isCurrentResponse()) { return }
         const currentIndex = responseItem.workflowProcess!.tracing!.findIndex(item => item.node_id === data.node_id)
+        if (currentIndex < 0) { return }
         responseItem.workflowProcess!.tracing[currentIndex] = data as any
         setChatList(produce(getChatList(), (draft) => {
           const currentIndex = draft.findIndex(item => item.id === responseItem.id)
+          if (currentIndex < 0) { return }
           draft[currentIndex] = {
             ...draft[currentIndex],
             ...responseItem,
@@ -644,21 +682,6 @@ const Main: FC<IMainProps> = () => {
         }))
       },
     })
-  }
-
-  const handleFeedback = async (messageId: string, feedback: Feedbacktype) => {
-    await updateFeedback({ url: `/messages/${messageId}/feedbacks`, body: { rating: feedback.rating } })
-    const newChatList = chatList.map((item) => {
-      if (item.id === messageId) {
-        return {
-          ...item,
-          feedback,
-        }
-      }
-      return item
-    })
-    setChatList(newChatList)
-    notify({ type: 'success', message: t('common.api.success') })
   }
 
   const renderSidebar = () => {
@@ -711,17 +734,15 @@ const Main: FC<IMainProps> = () => {
 
           {
             hasSetInputs && (
-              <div className='relative z-[1] grow pc:w-[794px] max-w-full mobile:w-full pb-[180px] mx-auto mb-3.5' ref={chatListDomRef}>
+              <div className={s.chatContent} ref={chatListDomRef}>
                 <Chat
-                  key={`${currConversationId}-${controlClearQuery}`}
+                  key={`${currConversationId}-${chatResetKey}`}
                   chatList={chatList}
                   onSend={handleSend}
-                  onFeedback={handleFeedback}
                   isResponding={isResponding}
                   checkCanSend={checkCanSend}
                   visionConfig={visionConfig}
                   fileConfig={fileConfig}
-                  controlClearQuery={controlClearQuery}
                 />
               </div>)
           }

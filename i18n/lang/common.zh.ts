@@ -17,6 +17,14 @@ const translation = {
     like: '赞同',
     dislike: '反对',
     ok: '好的',
+    copy: '复制',
+    copied: '已复制',
+    copyAnswer: '复制回答',
+    copiedAnswer: '已复制回答',
+  },
+  chat: {
+    greeting: '有什么我可以帮你的？',
+    inputPlaceholder: '输入消息…',
   },
   imageUploader: {
     uploadFromComputer: '从本地上传',

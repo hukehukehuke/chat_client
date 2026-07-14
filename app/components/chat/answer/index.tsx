@@ -1,11 +1,11 @@
 'use client'
 import type { FC } from 'react'
-import type { FeedbackFunc } from '../type'
 import type { ChatItem, VisionFile } from '@/types/app'
 import type { Emoji } from '@/types/tools'
 import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
 import React from 'react'
 import copy from 'copy-to-clipboard'
+import { useTranslation } from 'react-i18next'
 import Button from '@/app/components/base/button'
 import StreamdownMarkdown from '@/app/components/base/streamdown-markdown'
 import Tooltip from '@/app/components/base/tooltip'
@@ -14,10 +14,11 @@ import ImageGallery from '../../base/image-gallery'
 import LoadingAnim from '../loading-anim'
 import Thought from '../thought'
 
-function OperationBtn({ innerContent, onClick, className }: { innerContent: React.ReactNode, onClick?: () => void, className?: string }) {
+function OperationBtn({ ariaLabel, innerContent, onClick, className }: { ariaLabel: string, innerContent: React.ReactNode, onClick?: () => void, className?: string }) {
   return (
     <button
       type='button'
+      aria-label={ariaLabel}
       className={`relative box-border flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 ${className ?? ''}`}
       onClick={onClick}
     >
@@ -28,8 +29,6 @@ function OperationBtn({ innerContent, onClick, className }: { innerContent: Reac
 
 interface IAnswerProps {
   item: ChatItem
-  feedbackDisabled: boolean
-  onFeedback?: FeedbackFunc
   isResponding?: boolean
   allToolIcons?: Record<string, string | Emoji>
   suggestionClick?: (suggestion: string) => void
@@ -41,9 +40,15 @@ const Answer: FC<IAnswerProps> = ({
   allToolIcons,
   suggestionClick = () => { },
 }) => {
+  const { t } = useTranslation()
   const { id, content, agent_thoughts, workflowProcess, suggestedQuestions = [] } = item
   const isAgentMode = !!agent_thoughts && agent_thoughts.length > 0
   const [isCopied, setIsCopied] = React.useState(false)
+  const copyResetTimerRef = React.useRef<ReturnType<typeof globalThis.setTimeout> | null>(null)
+
+  React.useEffect(() => () => {
+    if (copyResetTimerRef.current) { globalThis.clearTimeout(copyResetTimerRef.current) }
+  }, [])
 
   const getImgs = (list?: VisionFile[]) => {
     if (!list) { return [] }
@@ -57,9 +62,15 @@ const Answer: FC<IAnswerProps> = ({
   const handleCopy = () => {
     if (!copyText) { return }
 
-    copy(copyText)
+    const didCopy = copy(copyText)
+    if (!didCopy) { return }
+
+    if (copyResetTimerRef.current) { globalThis.clearTimeout(copyResetTimerRef.current) }
     setIsCopied(true)
-    globalThis.setTimeout(() => setIsCopied(false), 1600)
+    copyResetTimerRef.current = globalThis.setTimeout(() => {
+      setIsCopied(false)
+      copyResetTimerRef.current = null
+    }, 1600)
   }
 
   const agentModeAnswer = (
@@ -85,7 +96,7 @@ const Answer: FC<IAnswerProps> = ({
   )
 
   return (
-    <div className='w-full' key={id}>
+    <div className='w-full'>
       <div className='w-full min-w-0'>
         <div className='text-base leading-8 text-[#1f1f1f] tablet:text-[18px]'>
           <div className='min-w-0 break-words'>
@@ -115,10 +126,11 @@ const Answer: FC<IAnswerProps> = ({
               </div>
             )}
           </div>
-          {copyText && !item.feedbackDisabled && (
+          {copyText && (
             <div className='mt-2 flex min-h-8 flex-row items-center gap-1'>
-              <Tooltip selector={`copy-answer-${id}`} content={isCopied ? '已复制' : '复制'}>
+              <Tooltip selector={`copy-answer-${id}`} content={t(isCopied ? 'common.operation.copied' : 'common.operation.copy')}>
                 <OperationBtn
+                  ariaLabel={t(isCopied ? 'common.operation.copiedAnswer' : 'common.operation.copyAnswer') as string}
                   innerContent={isCopied
                     ? <CheckIcon className='h-[18px] w-[18px]' />
                     : <ClipboardDocumentIcon className='h-[18px] w-[18px]' />}

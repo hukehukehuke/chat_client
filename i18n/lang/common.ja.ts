@@ -17,6 +17,14 @@ const translation = {
     like: 'いいね',
     dislike: 'よくないね',
     ok: 'OK',
+    copy: 'コピー',
+    copied: 'コピーしました',
+    copyAnswer: '回答をコピー',
+    copiedAnswer: '回答をコピーしました',
+  },
+  chat: {
+    greeting: 'どのようにお手伝いできますか？',
+    inputPlaceholder: 'メッセージを入力…',
   },
   imageUploader: {
     uploadFromComputer: 'コンピューターからアップロード',

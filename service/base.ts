@@ -4,6 +4,7 @@ import type { AnnotationReply, MessageEnd, MessageReplace, ThoughtItem } from '@
 import type { VisionFile } from '@/types/app'
 
 const TIME_OUT = 100000
+const MAX_ERROR_MESSAGE_LENGTH = 240
 
 const ContentType = {
   json: 'application/json',
@@ -139,6 +140,14 @@ function unicodeToChar(text: string) {
   })
 }
 
+const normalizeErrorMessage = (value: unknown, fallbackMessage: string) => {
+  if (typeof value !== 'string') { return fallbackMessage }
+
+  const message = value.trim()
+  if (!message || message.length > MAX_ERROR_MESSAGE_LENGTH || /^\s*</.test(message)) { return fallbackMessage }
+  return message
+}
+
 const getResponseErrorMessage = async (response: Response) => {
   const statusLabel = [response.status, response.statusText].filter(Boolean).join(' ')
   const fallbackMessage = statusLabel ? `请求失败（HTTP ${statusLabel}）` : 'Server Error'
@@ -149,11 +158,11 @@ const getResponseErrorMessage = async (response: Response) => {
 
     try {
       const body = JSON.parse(bodyText)
-      return body?.message || body?.error || fallbackMessage
+      return normalizeErrorMessage(body?.message ?? body?.error, fallbackMessage)
     }
     catch {
       // Avoid displaying an entire proxy or framework HTML error page.
-      return bodyText.length <= 240 ? bodyText : fallbackMessage
+      return normalizeErrorMessage(bodyText, fallbackMessage)
     }
   }
   catch {
@@ -291,47 +300,46 @@ const baseFetch = (url: string, fetchOptions: any, { needAllResponseContent }: I
 
   if (body) { options.body = JSON.stringify(body) }
 
-  // Handle timeout
-  return Promise.race([
-    new Promise((resolve, reject) => {
-      setTimeout(() => {
-        reject(new Error('request timeout'))
-      }, TIME_OUT)
-    }),
-    new Promise((resolve, reject) => {
-      globalThis.fetch(urlWithPrefix, options)
-        .then(async (res: Response) => {
-          const resClone = res.clone()
-          // Error handler
-          if (!res.ok) {
-            const message = res.status === 401
-              ? 'Invalid token'
-              : await getResponseErrorMessage(res)
-            Toast.notify({ type: 'error', message })
-            const error = new Error(message) as Error & { status?: number, response?: Response }
-            error.status = res.status
-            error.response = resClone
-            reject(error)
-            return
-          }
+  const abortController = new AbortController()
+  options.signal = abortController.signal
 
-          // handle delete api. Delete api not return content.
-          if (res.status === 204) {
-            resolve({ result: 'success' })
-            return
-          }
+  return new Promise((resolve, reject) => {
+    const timeoutId = globalThis.setTimeout(() => {
+      abortController.abort()
+      reject(new Error('request timeout'))
+    }, TIME_OUT)
 
-          // return data
-          const data = options.headers.get('Content-type') === ContentType.download ? res.blob() : res.json()
+    globalThis.fetch(urlWithPrefix, options)
+      .then(async (res: Response) => {
+        const resClone = res.clone()
+        if (!res.ok) {
+          const message = res.status === 401
+            ? 'Invalid token'
+            : await getResponseErrorMessage(res)
+          Toast.notify({ type: 'error', message })
+          const error = new Error(message) as Error & { status?: number, response?: Response }
+          error.status = res.status
+          error.response = resClone
+          reject(error)
+          return
+        }
 
-          resolve(needAllResponseContent ? resClone : data)
-        })
-        .catch((err) => {
-          Toast.notify({ type: 'error', message: err })
-          reject(err)
-        })
-    }),
-  ])
+        if (res.status === 204) {
+          resolve({ result: 'success' })
+          return
+        }
+
+        const data = options.headers.get('Content-type') === ContentType.download ? res.blob() : res.json()
+        resolve(needAllResponseContent ? resClone : data)
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') { return }
+        const message = error instanceof Error ? error.message : `${error}`
+        Toast.notify({ type: 'error', message })
+        reject(error)
+      })
+      .finally(() => globalThis.clearTimeout(timeoutId))
+  })
 }
 
 export const upload = (fetchOptions: any): Promise<any> => {
@@ -378,6 +386,7 @@ export const ssePost = (
     onNodeStarted,
     onNodeFinished,
     onError,
+    getAbortController,
   }: IOtherOptions,
 ) => {
   const options = Object.assign({}, baseOptions, {
@@ -389,6 +398,10 @@ export const ssePost = (
 
   const { body } = options
   if (body) { options.body = JSON.stringify(body) }
+
+  const abortController = new AbortController()
+  options.signal = abortController.signal
+  getAbortController?.(abortController)
 
   globalThis.fetch(urlWithPrefix, options)
     .then(async (res: Response) => {
@@ -409,6 +422,7 @@ export const ssePost = (
       }, onThought, onMessageEnd, onMessageReplace, onFile, onWorkflowStarted, onWorkflowFinished, onNodeStarted, onNodeFinished)
     })
     .catch((e) => {
+      if (e instanceof DOMException && e.name === 'AbortError') { return }
       const message = e instanceof Error ? e.message : `${e}`
       Toast.notify({ type: 'error', message })
       onError?.(message)
