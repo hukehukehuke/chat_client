@@ -1,0 +1,49 @@
+.mainSurface {
+  position: relative;
+  isolation: isolate;
+  background-color: #fff;
+}
+
+.mainSurface::before {
+  content: '';
+  position: fixed;
+  top: 48px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(
+      ellipse 74% 70% at 50% 56%,
+      rgba(174, 216, 255, 0.92) 0%,
+      rgba(207, 231, 255, 0.82) 30%,
+      rgba(232, 244, 255, 0.66) 52%,
+      rgba(250, 252, 255, 0.28) 76%,
+      rgba(255, 255, 255, 0) 100%
+    );
+  transition: opacity 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mainSurfaceEmpty::before {
+  opacity: 1;
+}
+
+@media (min-width: 640px) {
+  .mainSurface::before {
+    left: 192px;
+  }
+}
+
+@media (min-width: 769px) {
+  .mainSurface::before {
+    left: 244px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mainSurface::before {
+    transition: none;
+  }
+}

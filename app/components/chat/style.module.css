@@ -39,10 +39,6 @@
 }
 
 .answerWrap .itemOperation {
-  display: none;
-}
-
-.answerWrap:hover .itemOperation {
   display: flex;
 }
 
@@ -88,4 +84,187 @@
 
 .textArea:focus+div .sendBtn {
   background-image: url(./icons/send-active.svg);
+}
+
+.chatRoot {
+  height: 100%;
+}
+
+.emptyChatList {
+  pointer-events: none;
+}
+
+.emptyGreeting {
+  position: fixed;
+  top: calc(50% - 78px);
+  left: 50%;
+  z-index: 11;
+  width: min(800px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  color: #202124;
+  font-size: clamp(28px, 3vw, 44px);
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  text-align: center;
+  pointer-events: none;
+  opacity: 1;
+  transition:
+    opacity 220ms ease,
+    transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.emptyGreetingHidden {
+  opacity: 0;
+  transform: translate(-50%, -22px);
+}
+
+.composerPosition {
+  position: fixed;
+  top: 56vh;
+  left: 50%;
+  z-index: 20;
+  width: min(800px, calc(100vw - 28px));
+  padding: 0 14px;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.composerDocked {
+  transform: translate(-50%, calc(44vh - 100% - 24px));
+}
+
+.composerCard {
+  position: relative;
+  padding: 12px 16px;
+  overflow: visible;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(60, 64, 67, 0.08);
+  border-radius: 38px;
+  box-shadow:
+    0 8px 22px rgba(60, 64, 67, 0.12),
+    0 2px 6px rgba(60, 64, 67, 0.08);
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.composerCard:focus-within {
+  border-color: rgba(66, 133, 244, 0.24);
+  box-shadow:
+    0 10px 28px rgba(60, 64, 67, 0.14),
+    0 2px 7px rgba(66, 133, 244, 0.1);
+}
+
+.composerLeftActions,
+.composerRightActions {
+  position: absolute;
+  top: 50%;
+  bottom: auto;
+  z-index: 1;
+  display: flex;
+  height: 48px;
+  align-items: center;
+  transform: translateY(calc(-50% + 2px));
+}
+
+.composerActionsWithAttachments {
+  top: auto;
+  bottom: 10px;
+  transform: none;
+}
+
+.composerLeftActions {
+  left: 16px;
+}
+
+.composerRightActions {
+  right: 16px;
+}
+
+.sendButton {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 0;
+  border-radius: 50%;
+  color: #c4c9d2;
+  background: transparent;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.sendButton:hover,
+.sendButtonActive {
+  color: #1c64f2;
+}
+
+.sendButton:hover {
+  background-color: #ebf5ff;
+}
+
+@media (min-width: 640px) {
+  .emptyGreeting,
+  .composerPosition {
+    left: calc(50% + 96px);
+    width: min(800px, calc(100vw - 220px));
+  }
+}
+
+@media (min-width: 769px) {
+  .emptyGreeting,
+  .composerPosition {
+    left: calc(50% + 122px);
+    width: min(800px, calc(100vw - 284px));
+  }
+}
+
+@media (max-width: 639px) {
+  .emptyGreeting {
+    top: calc(50% - 66px);
+    padding: 0 18px;
+    font-size: 28px;
+  }
+
+  .composerPosition {
+    top: 55vh;
+    padding: 0 8px;
+  }
+
+  .composerDocked {
+    transform: translate(-50%, calc(45vh - 100% - 12px));
+  }
+
+  .composerCard {
+    padding-top: 8px;
+    padding-right: 10px;
+    padding-bottom: 8px;
+    padding-left: 10px;
+  }
+
+  .composerActionsWithAttachments {
+    bottom: 6px;
+  }
+
+  .composerLeftActions {
+    left: 12px;
+  }
+
+  .composerRightActions {
+    right: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emptyGreeting,
+  .composerPosition,
+  .composerCard {
+    transition: none;
+  }
 }

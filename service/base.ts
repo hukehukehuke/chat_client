@@ -139,6 +139,28 @@ function unicodeToChar(text: string) {
   })
 }
 
+const getResponseErrorMessage = async (response: Response) => {
+  const statusLabel = [response.status, response.statusText].filter(Boolean).join(' ')
+  const fallbackMessage = statusLabel ? `请求失败（HTTP ${statusLabel}）` : 'Server Error'
+
+  try {
+    const bodyText = (await response.text()).trim()
+    if (!bodyText) { return fallbackMessage }
+
+    try {
+      const body = JSON.parse(bodyText)
+      return body?.message || body?.error || fallbackMessage
+    }
+    catch {
+      // Avoid displaying an entire proxy or framework HTML error page.
+      return bodyText.length <= 240 ? bodyText : fallbackMessage
+    }
+  }
+  catch {
+    return fallbackMessage
+  }
+}
+
 const handleStream = (
   response: Response,
   onData: IOnData,
@@ -174,7 +196,7 @@ const handleStream = (
             try {
               bufferObj = JSON.parse(message.substring(6)) as Record<string, any>// remove data: and parse as json
             }
-            catch (e) {
+            catch {
               // mute handle message cut off
               onData('', isFirstMessage, {
                 conversationId: bufferObj?.conversation_id,
@@ -278,31 +300,19 @@ const baseFetch = (url: string, fetchOptions: any, { needAllResponseContent }: I
     }),
     new Promise((resolve, reject) => {
       globalThis.fetch(urlWithPrefix, options)
-        .then((res: any) => {
+        .then(async (res: Response) => {
           const resClone = res.clone()
           // Error handler
-          if (!/^(2|3)\d{2}$/.test(res.status)) {
-            try {
-              const bodyJson = res.json()
-              switch (res.status) {
-                case 401: {
-                  Toast.notify({ type: 'error', message: 'Invalid token' })
-                  return
-                }
-                default:
-                  // eslint-disable-next-line no-new
-                  new Promise(() => {
-                    bodyJson.then((data: any) => {
-                      Toast.notify({ type: 'error', message: data.message })
-                    })
-                  })
-              }
-            }
-            catch (e) {
-              Toast.notify({ type: 'error', message: `${e}` })
-            }
-
-            return Promise.reject(resClone)
+          if (!res.ok) {
+            const message = res.status === 401
+              ? 'Invalid token'
+              : await getResponseErrorMessage(res)
+            Toast.notify({ type: 'error', message })
+            const error = new Error(message) as Error & { status?: number, response?: Response }
+            error.status = res.status
+            error.response = resClone
+            reject(error)
+            return
           }
 
           // handle delete api. Delete api not return content.
@@ -381,15 +391,11 @@ export const ssePost = (
   if (body) { options.body = JSON.stringify(body) }
 
   globalThis.fetch(urlWithPrefix, options)
-    .then((res: any) => {
-      if (!/^(2|3)\d{2}$/.test(res.status)) {
-        // eslint-disable-next-line no-new
-        new Promise(() => {
-          res.json().then((data: any) => {
-            Toast.notify({ type: 'error', message: data.message || 'Server Error' })
-          })
-        })
-        onError?.('Server Error')
+    .then(async (res: Response) => {
+      if (!res.ok) {
+        const message = await getResponseErrorMessage(res)
+        Toast.notify({ type: 'error', message })
+        onError?.(message)
         return
       }
       return handleStream(res, (str: string, isFirstMessage: boolean, moreInfo: IOnDataMoreInfo) => {
@@ -403,8 +409,9 @@ export const ssePost = (
       }, onThought, onMessageEnd, onMessageReplace, onFile, onWorkflowStarted, onWorkflowFinished, onNodeStarted, onNodeFinished)
     })
     .catch((e) => {
-      Toast.notify({ type: 'error', message: e })
-      onError?.(e)
+      const message = e instanceof Error ? e.message : `${e}`
+      Toast.notify({ type: 'error', message })
+      onError?.(message)
     })
 }
 

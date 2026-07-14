@@ -12,7 +12,7 @@ const initI18next = async (lng: Locale, ns: string) => {
     .init({
       lng: lng === 'zh-Hans' ? 'zh' : lng,
       ns,
-      fallbackLng: 'en',
+      fallbackLng: 'zh-Hans',
     })
   return i18nInstance
 }

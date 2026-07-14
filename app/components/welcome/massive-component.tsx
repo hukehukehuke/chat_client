@@ -70,6 +70,3 @@ export const EditBtn = ({ className, onClick }: { className?: string, onClick: (
   )
 }
 
-export const FootLogo = () => (
-  <div className={s.logo} />
-)

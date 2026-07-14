@@ -2,13 +2,12 @@ import {
   useCallback,
 } from 'react'
 import {
-  RiLink,
   RiUploadCloud2Line,
 } from '@remixicon/react'
+import { PlusIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import { useFile } from './hooks'
 import type { FileEntity, FileUpload } from './types'
-import FileFromLinkOrLocal from './file-from-link-or-local'
 import {
   FileContextProvider,
   useStore,
@@ -26,9 +25,11 @@ interface Option {
 }
 interface FileUploaderInAttachmentProps {
   fileConfig: FileUpload
+  compact?: boolean
 }
 const FileUploaderInAttachment = ({
   fileConfig,
+  compact = false,
 }: FileUploaderInAttachmentProps) => {
   const { t } = useTranslation()
   const files = useStore(s => s.files)
@@ -42,18 +43,31 @@ const FileUploaderInAttachment = ({
       label: t('common.fileUploader.uploadFromComputer'),
       icon: <RiUploadCloud2Line className='h-4 w-4' />,
     },
-    {
-      value: TransferMethod.remote_url,
-      label: t('common.fileUploader.pasteFileLink'),
-      icon: <RiLink className='h-4 w-4' />,
-    },
   ]
 
   const renderButton = useCallback((option: Option, open?: boolean) => {
+    if (compact) {
+      return (
+        <div
+          key={option.value}
+          className={cn(
+            'relative flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer hover:bg-gray-100',
+            open && 'bg-gray-100',
+            (fileConfig.number_limits && files.length >= fileConfig.number_limits) && 'cursor-not-allowed opacity-50',
+          )}
+        >
+          <PlusIcon className='h-6 w-6 text-gray-800' aria-hidden='true' />
+          {
+            option.value === TransferMethod.local_file && (
+              <FileInput fileConfig={fileConfig} />
+            )
+          }
+        </div>
+      )
+    }
     return (
       <Button
         key={option.value}
-        // variant='tertiary'
         className={cn('relative grow', open && 'bg-components-button-tertiary-bg-hover')}
         disabled={!!(fileConfig.number_limits && files.length >= fileConfig.number_limits)}
       >
@@ -66,24 +80,10 @@ const FileUploaderInAttachment = ({
         }
       </Button>
     )
-  }, [fileConfig, files.length])
-  const renderTrigger = useCallback((option: Option) => {
-    return (open: boolean) => renderButton(option, open)
-  }, [renderButton])
+  }, [fileConfig, files.length, compact])
   const renderOption = useCallback((option: Option) => {
     if (option.value === TransferMethod.local_file && fileConfig?.allowed_file_upload_methods?.includes(TransferMethod.local_file)) { return renderButton(option) }
-
-    if (option.value === TransferMethod.remote_url && fileConfig?.allowed_file_upload_methods?.includes(TransferMethod.remote_url)) {
-      return (
-        <FileFromLinkOrLocal
-          key={option.value}
-          showFromLocal={false}
-          trigger={renderTrigger(option)}
-          fileConfig={fileConfig}
-        />
-      )
-    }
-  }, [renderButton, renderTrigger, fileConfig])
+  }, [renderButton, fileConfig])
 
   return (
     <div>
@@ -112,18 +112,20 @@ interface FileUploaderInAttachmentWrapperProps {
   value?: FileEntity[]
   onChange: (files: FileEntity[]) => void
   fileConfig: FileUpload
+  compact?: boolean
 }
 const FileUploaderInAttachmentWrapper = ({
   value,
   onChange,
   fileConfig,
+  compact = false,
 }: FileUploaderInAttachmentWrapperProps) => {
   return (
     <FileContextProvider
       value={value}
       onChange={onChange}
     >
-      <FileUploaderInAttachment fileConfig={fileConfig} />
+      <FileUploaderInAttachment fileConfig={fileConfig} compact={compact} />
     </FileContextProvider>
   )
 }

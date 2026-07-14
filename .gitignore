@@ -18,7 +18,10 @@
 # misc
 .DS_Store
 .vscode
+.idea/
+.qwen/
 *.pem
+dev-server*.log
 
 # debug
 npm-debug.log*

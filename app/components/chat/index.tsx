@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react'
 import cn from 'classnames'
 import { useTranslation } from 'react-i18next'
 import Textarea from 'rc-textarea'
+import { PaperAirplaneIcon } from '@heroicons/react/24/outline'
 import s from './style.module.css'
 import Answer from './answer'
 import Question from './question'
@@ -55,6 +56,12 @@ const Chat: FC<IChatProps> = ({
   const { t } = useTranslation()
   const { notify } = Toast
   const isUseInputMethod = useRef(false)
+  const hasConversationMessages = chatList.some(item => item.isAnswer === false)
+  const inputPlaceholderKey = 'common.chat.inputPlaceholder'
+  const translatedInputPlaceholder = t(inputPlaceholderKey) as string
+  const inputPlaceholder = translatedInputPlaceholder === inputPlaceholderKey
+    ? '输入消息…'
+    : translatedInputPlaceholder
 
   const [query, setQuery] = React.useState('')
   const queryRef = useRef('')
@@ -95,6 +102,7 @@ const Chat: FC<IChatProps> = ({
   } = useImageFiles()
 
   const [attachmentFiles, setAttachmentFiles] = React.useState<FileEntity[]>([])
+  const hasAttachments = files.length > 0 || attachmentFiles.length > 0
 
   const handleSend = () => {
     if (!valid() || (checkCanSend && !checkCanSend())) { return }
@@ -148,9 +156,9 @@ const Chat: FC<IChatProps> = ({
   }
 
   return (
-    <div className={cn(!feedbackDisabled && 'px-3.5', 'h-full')}>
+    <div className={cn(!feedbackDisabled && 'px-3.5', s.chatRoot)}>
       {/* Chat List */}
-      <div className="h-full space-y-[30px]">
+      <div className={cn('h-full space-y-10 pt-8 tablet:pt-10', !hasConversationMessages && s.emptyChatList)}>
         {chatList.map((item) => {
           if (item.isAnswer) {
             const isLast = item.id === chatList[chatList.length - 1].id
@@ -176,69 +184,109 @@ const Chat: FC<IChatProps> = ({
       </div>
       {
         !isHideSendInput && (
-          <div className='fixed z-10 bottom-0 left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3.5'>
-            <div className='p-[5.5px] max-h-[150px] bg-white border-[1.5px] border-gray-200 rounded-xl overflow-y-auto'>
-              {
-                visionConfig?.enabled && (
-                  <>
-                    <div className='absolute bottom-2 left-2 flex items-center'>
-                      <ChatImageUploader
-                        settings={visionConfig}
-                        onUpload={onUpload}
-                        disabled={files.length >= visionConfig.number_limits}
+          <>
+            <div
+              className={cn(
+                s.emptyGreeting,
+                hasConversationMessages && s.emptyGreetingHidden,
+              )}
+            >
+              有什么我可以帮你的？
+            </div>
+            <div
+              className={cn(
+                s.composerPosition,
+                hasConversationMessages && s.composerDocked,
+              )}
+            >
+              <div className={s.composerCard}>
+                <div className={cn(s.composerLeftActions, hasAttachments && s.composerActionsWithAttachments)}>
+                  {
+                    fileConfig?.enabled && (
+                      <FileUploaderInAttachmentWrapper
+                        fileConfig={fileConfig}
+                        value={attachmentFiles}
+                        onChange={setAttachmentFiles}
+                        compact
                       />
-                      <div className='mx-1 w-[1px] h-4 bg-black/5' />
-                    </div>
-                    <div className='pl-[52px]'>
-                      <ImageList
-                        list={files}
-                        onRemove={onRemove}
-                        onReUpload={onReUpload}
-                        onImageLinkLoadSuccess={onImageLinkLoadSuccess}
-                        onImageLinkLoadError={onImageLinkLoadError}
-                      />
-                    </div>
-                  </>
-                )
-              }
-              {
-                fileConfig?.enabled && (
-                  <div className={`${visionConfig?.enabled ? 'pl-[52px]' : ''} mb-1`}>
-                    <FileUploaderInAttachmentWrapper
-                      fileConfig={fileConfig}
-                      value={attachmentFiles}
-                      onChange={setAttachmentFiles}
-                    />
-                  </div>
-                )
-              }
-              <Textarea
-                className={`
-                  block w-full px-2 pr-[118px] py-[7px] leading-5 max-h-none text-base text-gray-700 outline-none appearance-none resize-none
-                  ${visionConfig?.enabled && 'pl-12'}
-                `}
-                value={query}
-                onChange={handleContentChange}
-                onKeyUp={handleKeyUp}
-                onKeyDown={handleKeyDown}
-                autoSize
-              />
-              <div className="absolute bottom-2 right-6 flex items-center h-8">
-                <div className={`${s.count} mr-3 h-5 leading-5 text-sm bg-gray-50 text-gray-500 px-2 rounded`}>{query.trim().length}</div>
-                <Tooltip
-                  selector='send-tip'
-                  htmlContent={
-                    <div>
-                      <div>{t('common.operation.send')} Enter</div>
-                      <div>{t('common.operation.lineBreak')} Shift Enter</div>
-                    </div>
+                    )
                   }
-                >
-                  <div className={`${s.sendBtn} w-8 h-8 cursor-pointer rounded-md`} onClick={handleSend}></div>
-                </Tooltip>
+                  {
+                    visionConfig?.enabled && (
+                      <>
+                        <div className='mx-1 w-[1px] h-4 bg-black/5' />
+                        <ChatImageUploader
+                          settings={visionConfig}
+                          onUpload={onUpload}
+                          disabled={files.length >= visionConfig.number_limits}
+                        />
+                      </>
+                    )
+                  }
+                </div>
+                {
+                  hasAttachments && (
+                    <div className='pl-[52px] pb-2'>
+                      {
+                        files.length > 0 && (
+                          <ImageList
+                            list={files}
+                            onRemove={onRemove}
+                            onReUpload={onReUpload}
+                            onImageLinkLoadSuccess={onImageLinkLoadSuccess}
+                            onImageLinkLoadError={onImageLinkLoadError}
+                          />
+                        )
+                      }
+                      {
+                        fileConfig && attachmentFiles.length > 0 && (
+                          <div className='mt-1 space-y-1'>
+                            <FileUploaderInAttachmentWrapper
+                              fileConfig={fileConfig}
+                              value={attachmentFiles}
+                              onChange={setAttachmentFiles}
+                            />
+                          </div>
+                        )
+                      }
+                    </div>
+                  )
+                }
+                <Textarea
+                  className={`
+                    relative top-[2px] block w-full pl-[50px] pr-[52px] py-1.5 text-base text-gray-700 bg-transparent outline-none appearance-none resize-none leading-relaxed
+                  `}
+                  style={{ minHeight: '48px', maxHeight: '200px' }}
+                  value={query}
+                  onChange={handleContentChange}
+                  onKeyUp={handleKeyUp}
+                  onKeyDown={handleKeyDown}
+                  autoSize={{ minRows: 1, maxRows: 8 }}
+                  placeholder={inputPlaceholder}
+                />
+                <div className={cn(s.composerRightActions, hasAttachments && s.composerActionsWithAttachments)}>
+                  <Tooltip
+                    selector='send-tip'
+                    htmlContent={
+                      <div>
+                        <div>{t('common.operation.send')} Enter</div>
+                        <div>{t('common.operation.lineBreak')} Shift Enter</div>
+                      </div>
+                    }
+                  >
+                    <button
+                      type='button'
+                      aria-label={t('common.operation.send') as string}
+                      className={cn(s.sendButton, query.trim() && s.sendButtonActive)}
+                      onClick={handleSend}
+                    >
+                      <PaperAirplaneIcon className='h-5 w-5' aria-hidden='true' />
+                    </button>
+                  </Tooltip>
+                </div>
               </div>
             </div>
-          </div>
+          </>
         )
       }
     </div>

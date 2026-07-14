@@ -22,6 +22,7 @@ import AppUnavailable from '@/app/components/app-unavailable'
 import { API_KEY, APP_ID, APP_INFO, isShowPrompt, promptTemplate } from '@/config'
 import type { Annotation as AnnotationType } from '@/types/log'
 import { addFileInfos, sortAgentSorts } from '@/utils/tools'
+import s from './style.module.css'
 
 export interface IMainProps {
   params: any
@@ -51,7 +52,7 @@ const Main: FC<IMainProps> = () => {
   const [fileConfig, setFileConfig] = useState<FileUpload | undefined>()
 
   useEffect(() => {
-    if (APP_INFO?.title) { document.title = `${APP_INFO.title} - Powered by Dify` }
+    if (APP_INFO?.title) { document.title = `${APP_INFO.title} - 技术支持` }
   }, [APP_INFO?.title])
 
   // onData change thought (the produce obj). https://github.com/immerjs/immer/issues/576
@@ -95,7 +96,9 @@ const Main: FC<IMainProps> = () => {
   const hasSetInputs = (() => {
     if (!isNewConversation) { return true }
 
-    return isChatStarted
+    // Apps without prompt variables can enter the conversation directly.
+    // Prompt-driven apps still keep the existing configuration step.
+    return isChatStarted || promptConfig?.prompt_variables.length === 0
   })()
 
   const conversationName = currConversationInfo?.name || t('app.chat.newChatDefaultName') as string
@@ -126,7 +129,12 @@ const Main: FC<IMainProps> = () => {
 
     // update chat list of current conversation
     if (!isNewConversation && !conversationIdChangeBecauseOfNew && !isResponding) {
-      fetchChatList(currConversationId).then((res: any) => {
+      const requestedConversationId = currConversationId
+      fetchChatList(requestedConversationId).then((res: any) => {
+        // Ignore a slow history response after the user has already switched
+        // to another conversation (especially a fresh "new chat").
+        if (getCurrConversationId() !== requestedConversationId) { return }
+
         const { data } = res
         const newChatList: ChatItem[] = generateNewChatListWithOpenStatement(notSyncToStateIntroduction, notSyncToStateInputs)
 
@@ -151,7 +159,9 @@ const Main: FC<IMainProps> = () => {
       })
     }
 
-    if (isNewConversation && isChatStarted) { setChatList(generateNewChatListWithOpenStatement()) }
+    if (isNewConversation) {
+      setChatList(generateNewChatListWithOpenStatement('', newConversationInputs))
+    }
   }
   useEffect(handleConversationSwitch, [currConversationId, inited])
 
@@ -159,6 +169,9 @@ const Main: FC<IMainProps> = () => {
     if (id === '-1') {
       createNewChat()
       setConversationIdChangeBecauseOfNew(true)
+      setChatNotStarted()
+      setChatList([])
+      setControlClearQuery(value => value + 1)
     }
     else {
       setConversationIdChangeBecauseOfNew(false)
@@ -186,6 +199,8 @@ const Main: FC<IMainProps> = () => {
   }, [chatList, currConversationId])
   // user can not edit inputs if user had send message
   const canEditInputs = !chatList.some(item => item.isAnswer === false) && isNewConversation
+  const hasConversationMessages = chatList.some(item => item.isAnswer === false)
+  const isGeminiEmptyState = hasSetInputs && !hasConversationMessages
   const createNewChat = () => {
     // if new chat is already exist, do not create new chat
     if (conversationList.some(item => item.id === '-1')) { return }
@@ -306,8 +321,9 @@ const Main: FC<IMainProps> = () => {
 
     let emptyRequiredInput = false
     promptConfig.prompt_variables.forEach((item) => {
-      if (item.required && !currInputs[item.key])
+      if (item.required && !currInputs[item.key]) {
         emptyRequiredInput = true
+      }
     })
 
     if (emptyRequiredInput) {
@@ -317,7 +333,7 @@ const Main: FC<IMainProps> = () => {
     return true
   }
 
-  const [controlFocus, setControlFocus] = useState(0)
+  const [controlClearQuery, setControlClearQuery] = useState(0)
   const [openingSuggestedQuestions, setOpeningSuggestedQuestions] = useState<string[]>([])
   const [messageTaskId, setMessageTaskId] = useState('')
   const [hasStopResponded, setHasStopResponded, getHasStopResponded] = useGetState(false)
@@ -361,6 +377,15 @@ const Main: FC<IMainProps> = () => {
       notify({ type: 'info', message: t('app.errorMessage.waitForResponse') })
       return
     }
+
+    // The no-variable flow no longer needs a separate "start chat" click,
+    // so initialise the virtual conversation on the first actual message.
+    if (isNewConversation && !isChatStarted) {
+      createNewChat()
+      setConversationIdChangeBecauseOfNew(true)
+      setChatStarted()
+    }
+
     const toServerInputs: Record<string, any> = {}
     if (currInputs) {
       Object.keys(currInputs).forEach((key) => {
@@ -671,7 +696,7 @@ const Main: FC<IMainProps> = () => {
           </div>
         )}
         {/* main */}
-        <div className='flex-grow flex flex-col h-[calc(100vh_-_3rem)] overflow-y-auto'>
+        <div className={`${s.mainSurface} ${isGeminiEmptyState ? s.mainSurfaceEmpty : ''} flex-grow flex flex-col h-[calc(100vh_-_3rem)] overflow-y-auto`}>
           <ConfigSence
             conversationName={conversationName}
             hasSetInputs={hasSetInputs}
@@ -686,8 +711,9 @@ const Main: FC<IMainProps> = () => {
 
           {
             hasSetInputs && (
-              <div className='relative grow pc:w-[794px] max-w-full mobile:w-full pb-[180px] mx-auto mb-3.5' ref={chatListDomRef}>
+              <div className='relative z-[1] grow pc:w-[794px] max-w-full mobile:w-full pb-[180px] mx-auto mb-3.5' ref={chatListDomRef}>
                 <Chat
+                  key={`${currConversationId}-${controlClearQuery}`}
                   chatList={chatList}
                   onSend={handleSend}
                   onFeedback={handleFeedback}
@@ -695,6 +721,7 @@ const Main: FC<IMainProps> = () => {
                   checkCanSend={checkCanSend}
                   visionConfig={visionConfig}
                   fileConfig={fileConfig}
+                  controlClearQuery={controlClearQuery}
                 />
               </div>)
           }
