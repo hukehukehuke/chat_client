@@ -12,7 +12,7 @@ import Tooltip from '@/app/components/base/tooltip'
 import WorkflowProcess from '@/app/components/workflow/workflow-process'
 import ImageGallery from '../../base/image-gallery'
 import LoadingAnim from '../loading-anim'
-import Thought from '../thought'
+import ThinkingPanel from '../thought/thinking-panel'
 
 function OperationBtn({ ariaLabel, innerContent, onClick, className }: { ariaLabel: string, innerContent: React.ReactNode, onClick?: () => void, className?: string }) {
   return (
@@ -73,25 +73,24 @@ const Answer: FC<IAnswerProps> = ({
     }, 1600)
   }
 
+  const visibleAnswerThought = [...(agent_thoughts || [])].reverse().find(thought => !!thought.thought.trim())
+  const hasRunningAgentTool = !!isResponding && (agent_thoughts || []).some(thought => !!thought.tool && !thought.observation)
+  const shouldRevealAnswer = !hasRunningAgentTool
+  const visibleAnswer = shouldRevealAnswer ? (visibleAnswerThought?.thought || content) : ''
+  const visibleAnswerImages = shouldRevealAnswer ? getImgs(visibleAnswerThought?.message_files) : []
+
   const agentModeAnswer = (
     <div>
-      {agent_thoughts?.map((thought, index) => (
-        <div key={index}>
-          {thought.thought && (
-            <StreamdownMarkdown content={thought.thought} />
-          )}
-          {!!thought.tool && (
-            <Thought
-              thought={thought}
-              allToolIcons={allToolIcons || {}}
-              isFinished={!!thought.observation || !isResponding}
-            />
-          )}
-          {getImgs(thought.message_files).length > 0 && (
-            <ImageGallery srcs={getImgs(thought.message_files).map(image => image.url)} />
-          )}
-        </div>
-      ))}
+      <ThinkingPanel
+        thoughts={agent_thoughts || []}
+        answerThoughtId={shouldRevealAnswer ? visibleAnswerThought?.id : undefined}
+        allToolIcons={allToolIcons || {}}
+        isResponding={!!isResponding}
+      />
+      {visibleAnswer && <StreamdownMarkdown content={visibleAnswer} />}
+      {visibleAnswerImages.length > 0 && (
+        <ImageGallery srcs={visibleAnswerImages.map(image => image.url)} />
+      )}
     </div>
   )
 

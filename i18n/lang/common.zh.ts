@@ -5,6 +5,8 @@ const translation = {
     create: '已创建',
   },
   operation: {
+    delete: '删除',
+    retry: '重试',
     confirm: '确认',
     cancel: '取消',
     clear: '清空',
@@ -37,6 +39,8 @@ const translation = {
     imageUpload: '图片上传',
   },
   fileUploader: {
+    uploading: '上传中',
+    uploadFailed: '上传失败',
     uploadFromComputer: '从本地上传',
     pasteFileLink: '粘贴文件链接',
     pasteFileLinkInputPlaceholder: '输入文件链接',

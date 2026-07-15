@@ -70,6 +70,12 @@ const translation = {
     testResultPlaceholder: 'Test result will show here',
   },
   thought: {
+    thinking: 'Thinking...',
+    thought: 'Thought process',
+    workflow: 'Workflow',
+    workflowRunning: 'Running workflow...',
+    workflowSucceeded: 'Workflow completed',
+    workflowFailed: 'Workflow failed',
     using: 'Using',
     used: 'Used',
     requestTitle: 'Request to',

@@ -62,6 +62,12 @@ const translation = {
     privacyPolicyPlaceholder: '请输入隐私协议',
   },
   thought: {
+    thinking: '思考中...',
+    thought: '思考过程',
+    workflow: '工作流',
+    workflowRunning: '工作流执行中...',
+    workflowSucceeded: '工作流已完成',
+    workflowFailed: '工作流执行失败',
     using: '正在使用',
     used: '已使用',
     requestTitle: '请求来自',

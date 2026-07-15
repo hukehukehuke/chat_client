@@ -1,13 +1,20 @@
-.thinkingPanel {
+.workflowPanel {
   width: 100%;
-  margin: 0 0 12px;
   overflow: hidden;
   border: 1px solid rgba(16, 24, 40, 0.08);
   border-radius: 10px;
-  background: rgba(249, 250, 251, 0.72);
+  background: rgba(255, 255, 255, 0.92);
 }
 
-.thinkingHeader {
+.workflowPanelGray {
+  background: rgba(249, 250, 251, 0.82);
+}
+
+.workflowPanelCompact {
+  margin: 0;
+}
+
+.workflowHeader {
   display: flex;
   width: 100%;
   min-height: 40px;
@@ -21,11 +28,11 @@
   text-align: left;
 }
 
-.thinkingHeader:hover {
+.workflowHeader:hover {
   background: rgba(16, 24, 40, 0.025);
 }
 
-.thinkingHeader:focus-visible {
+.workflowHeader:focus-visible {
   outline: 2px solid rgba(28, 100, 242, 0.3);
   outline-offset: -2px;
 }
@@ -39,21 +46,44 @@
   justify-content: center;
   border: 1px solid rgba(16, 24, 40, 0.1);
   border-radius: 6px;
+  color: #667085;
   background: #fff;
 }
 
-.statusIconActive {
-  color: #7c3aed;
-  border-color: rgba(124, 58, 237, 0.2);
-  background: rgba(124, 58, 237, 0.05);
+.statusSucceeded {
+  color: #12b76a;
+  border-color: rgba(18, 183, 106, 0.2);
+  background: rgba(18, 183, 106, 0.05);
 }
 
-.thinkingTitle {
+.statusFailed {
+  color: #f04438;
+  border-color: rgba(240, 68, 56, 0.2);
+  background: rgba(240, 68, 56, 0.05);
+}
+
+.workflowTitle {
   min-width: 0;
   flex: 1;
+  overflow: hidden;
   font-size: 13px;
   font-weight: 500;
   line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nodeCount {
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border-radius: 10px;
+  color: #667085;
+  background: rgba(16, 24, 40, 0.05);
+  font-size: 11px;
 }
 
 .shimmerText {
@@ -75,42 +105,26 @@
   transform: rotate(180deg);
 }
 
-.thinkingContent {
-  max-height: min(40vh, 320px);
+.workflowContent {
+  max-height: min(44vh, 360px);
   overflow: auto;
-  padding: 2px 10px 10px 40px;
-  color: #667085;
+  padding: 1px 8px 8px 34px;
   scrollbar-width: thin;
 }
 
-.thoughtEntry + .thoughtEntry {
-  margin-top: 8px;
-}
-
-.reasoningText {
-  font-size: 13px;
-  line-height: 1.65;
-}
-
-.reasoningText :global(p) {
-  margin: 0 0 6px;
-}
-
-.reasoningText :global(p:last-child) {
-  margin-bottom: 0;
-}
-
-.wrap {
-  background-color: rgba(255, 255, 255, 0.92);
-}
-
-.wrapHoverEffect:hover {
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+.workflowContent > * + * {
+  margin-top: 5px;
 }
 
 @keyframes shimmer {
   to {
     background-position: -220% 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .workflowContent {
+    padding-left: 8px;
   }
 }
 

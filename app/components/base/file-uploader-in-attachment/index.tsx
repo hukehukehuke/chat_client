@@ -14,6 +14,7 @@ import {
 } from './store'
 import FileInput from './file-input'
 import FileItem from './file-item'
+import s from './style.module.css'
 import Button from '@/app/components/base/button'
 import cn from '@/utils/classnames'
 import { TransferMethod } from '@/types/app'
@@ -26,10 +27,12 @@ interface Option {
 interface FileUploaderInAttachmentProps {
   fileConfig: FileUpload
   compact?: boolean
+  listOnly?: boolean
 }
-const FileUploaderInAttachment = ({
+export const FileUploaderInAttachment = ({
   fileConfig,
   compact = false,
+  listOnly = false,
 }: FileUploaderInAttachmentProps) => {
   const { t } = useTranslation()
   const files = useStore(s => s.files)
@@ -87,23 +90,24 @@ const FileUploaderInAttachment = ({
 
   return (
     <div>
-      <div className='flex items-center space-x-1'>
-        {options.map(renderOption)}
-      </div>
-      <div className='mt-1 space-y-1'>
-        {
-          files.map(file => (
+      {!listOnly && (
+        <div className='flex items-center space-x-1'>
+          {options.map(renderOption)}
+        </div>
+      )}
+      {!compact && (
+        <div className={s.fileList}>
+          {files.map(file => (
             <FileItem
               key={file.id}
               file={file}
               showDeleteAction
-              showDownloadAction={false}
               onRemove={() => handleRemoveFile(file.id)}
               onReUpload={() => handleReUploadFile(file.id)}
             />
-          ))
-        }
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -113,19 +117,21 @@ interface FileUploaderInAttachmentWrapperProps {
   onChange: (files: FileEntity[]) => void
   fileConfig: FileUpload
   compact?: boolean
+  listOnly?: boolean
 }
 const FileUploaderInAttachmentWrapper = ({
   value,
   onChange,
   fileConfig,
   compact = false,
+  listOnly = false,
 }: FileUploaderInAttachmentWrapperProps) => {
   return (
     <FileContextProvider
       value={value}
       onChange={onChange}
     >
-      <FileUploaderInAttachment fileConfig={fileConfig} compact={compact} />
+      <FileUploaderInAttachment fileConfig={fileConfig} compact={compact} listOnly={listOnly} />
     </FileContextProvider>
   )
 }

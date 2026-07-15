@@ -200,7 +200,7 @@ const Chat: FC<IChatProps> = ({
                 </div>
                 {
                   hasAttachments && (
-                    <div className='pl-[52px] pb-2'>
+                    <div className='pb-2'>
                       {
                         files.length > 0 && (
                           <ImageList
@@ -214,11 +214,12 @@ const Chat: FC<IChatProps> = ({
                       }
                       {
                         fileConfig && attachmentFiles.length > 0 && (
-                          <div className='mt-1 space-y-1'>
+                          <div className='max-w-full overflow-visible'>
                             <FileUploaderInAttachmentWrapper
                               fileConfig={fileConfig}
                               value={attachmentFiles}
                               onChange={setAttachmentFiles}
+                              listOnly
                             />
                           </div>
                         )

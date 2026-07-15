@@ -5,6 +5,8 @@ const translation = {
     create: 'Created',
   },
   operation: {
+    delete: 'Delete',
+    retry: 'Retry',
     confirm: 'Confirm',
     cancel: 'Cancel',
     clear: 'Clear',
@@ -37,6 +39,8 @@ const translation = {
     imageUpload: 'Image Upload',
   },
   fileUploader: {
+    uploading: 'Uploading',
+    uploadFailed: 'Upload failed',
     uploadFromComputer: 'Local upload',
     pasteFileLink: 'Paste file link',
     pasteFileLinkInputPlaceholder: 'Enter URL...',
