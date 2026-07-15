@@ -8,6 +8,7 @@ import { PaperAirplaneIcon } from '@heroicons/react/24/outline'
 import s from './style.module.css'
 import Answer from './answer'
 import Question from './question'
+import StreamdownMarkdown from '@/app/components/base/streamdown-markdown'
 import type { ChatItem, VisionFile, VisionSettings } from '@/types/app'
 import { TransferMethod } from '@/types/app'
 import Tooltip from '@/app/components/base/tooltip'
@@ -15,7 +16,8 @@ import Toast from '@/app/components/base/toast'
 import ChatImageUploader from '@/app/components/base/image-uploader/chat-image-uploader'
 import ImageList from '@/app/components/base/image-uploader/image-list'
 import { useImageFiles } from '@/app/components/base/image-uploader/hooks'
-import FileUploaderInAttachmentWrapper from '@/app/components/base/file-uploader-in-attachment'
+import { FileUploaderInAttachment } from '@/app/components/base/file-uploader-in-attachment'
+import { FileContextProvider } from '@/app/components/base/file-uploader-in-attachment/store'
 import type { FileEntity, FileUpload } from '@/app/components/base/file-uploader-in-attachment/types'
 import { getProcessedFiles } from '@/app/components/base/file-uploader-in-attachment/utils'
 
@@ -30,6 +32,19 @@ export interface IChatProps {
   isResponding?: boolean
   visionConfig?: VisionSettings
   fileConfig?: FileUpload
+  isWelcomeState?: boolean
+  openingStatement?: string
+  suggestedQuestions?: string[]
+}
+
+const getOpeningHeadline = (openingStatement: string) => {
+  const trimmedStatement = openingStatement.trim()
+  const greeting = trimmedStatement.match(/^你好[！!]?/)?.[0]
+  if (!greeting) { return trimmedStatement.match(/^[^。！？.!?]+[。！？.!?]?/)?.[0] || trimmedStatement }
+
+  const remainingStatement = trimmedStatement.slice(greeting.length).trimStart()
+  const firstSentence = remainingStatement.match(/^[^。！？.!?]+[。！？.!?]?/)?.[0] || ''
+  return `${greeting}${firstSentence}`
 }
 
 const Chat: FC<IChatProps> = ({
@@ -40,12 +55,15 @@ const Chat: FC<IChatProps> = ({
   isResponding,
   visionConfig,
   fileConfig,
+  isWelcomeState = false,
+  openingStatement = '',
+  suggestedQuestions = [],
 }) => {
   const { t } = useTranslation()
   const { notify } = Toast
   const isUseInputMethod = useRef(false)
-  const hasConversationMessages = chatList.length > 0
   const inputPlaceholder = t('common.chat.inputPlaceholder') as string
+  const openingHeadline = getOpeningHeadline(openingStatement)
 
   const [query, setQuery] = React.useState('')
   const queryRef = useRef('')
@@ -136,7 +154,7 @@ const Chat: FC<IChatProps> = ({
   return (
     <div className={cn('px-3.5', s.chatRoot)}>
       {/* Chat List */}
-      <div className={cn('h-full space-y-10 pt-8 tablet:pt-10', !hasConversationMessages && s.emptyChatList)}>
+      <div className={cn('h-full space-y-10 pt-8 tablet:pt-10', isWelcomeState && s.emptyChatList)}>
         {chatList.map((item) => {
           if (item.isAnswer) {
             const isLast = item.id === chatList[chatList.length - 1].id
@@ -144,7 +162,6 @@ const Chat: FC<IChatProps> = ({
               key={item.id}
               item={item}
               isResponding={isResponding && isLast}
-              suggestionClick={suggestionClick}
             />
           }
           return (
@@ -159,107 +176,124 @@ const Chat: FC<IChatProps> = ({
       {
         !isHideSendInput && (
           <>
-            <div
+            <section
               className={cn(
                 s.emptyGreeting,
-                hasConversationMessages && s.emptyGreetingHidden,
+                !isWelcomeState && s.emptyGreetingHidden,
               )}
+              aria-hidden={!isWelcomeState}
             >
-              {t('common.chat.greeting')}
-            </div>
+              {openingHeadline && (
+                <div className={s.openingStatement}>
+                  <StreamdownMarkdown content={openingHeadline} />
+                </div>
+              )}
+            </section>
             <div
               className={cn(
                 s.composerPosition,
-                hasConversationMessages && s.composerDocked,
+                !isWelcomeState && s.composerDocked,
               )}
             >
-              <div className={s.composerCard}>
-                <div className={cn(s.composerLeftActions, hasAttachments && s.composerActionsWithAttachments)}>
-                  {
-                    fileConfig?.enabled && (
-                      <FileUploaderInAttachmentWrapper
-                        fileConfig={fileConfig}
-                        value={attachmentFiles}
-                        onChange={setAttachmentFiles}
-                        compact
-                      />
-                    )
-                  }
-                  {
-                    visionConfig?.enabled && (
-                      <>
-                        <div className='mx-1 w-[1px] h-4 bg-black/5' />
-                        <ChatImageUploader
-                          settings={visionConfig}
-                          onUpload={onUpload}
-                          disabled={files.length >= visionConfig.number_limits}
+              <FileContextProvider value={attachmentFiles} onChange={setAttachmentFiles}>
+                <div className={s.composerCard}>
+                  <div className={cn(s.composerLeftActions, hasAttachments && s.composerActionsWithAttachments)}>
+                    {
+                      fileConfig?.enabled && (
+                        <FileUploaderInAttachment
+                          fileConfig={fileConfig}
+                          compact
                         />
-                      </>
+                      )
+                    }
+                    {
+                      visionConfig?.enabled && (
+                        <>
+                          <div className='mx-1 w-[1px] h-4 bg-black/5' />
+                          <ChatImageUploader
+                            settings={visionConfig}
+                            onUpload={onUpload}
+                            disabled={files.length >= visionConfig.number_limits}
+                          />
+                        </>
+                      )
+                    }
+                  </div>
+                  {
+                    hasAttachments && (
+                      <div className='pb-2'>
+                        {
+                          files.length > 0 && (
+                            <ImageList
+                              list={files}
+                              onRemove={onRemove}
+                              onReUpload={onReUpload}
+                              onImageLinkLoadSuccess={onImageLinkLoadSuccess}
+                              onImageLinkLoadError={onImageLinkLoadError}
+                            />
+                          )
+                        }
+                        {
+                          fileConfig && attachmentFiles.length > 0 && (
+                            <div className='max-w-full overflow-visible'>
+                              <FileUploaderInAttachment
+                                fileConfig={fileConfig}
+                                listOnly
+                              />
+                            </div>
+                          )
+                        }
+                      </div>
                     )
                   }
-                </div>
-                {
-                  hasAttachments && (
-                    <div className='pb-2'>
-                      {
-                        files.length > 0 && (
-                          <ImageList
-                            list={files}
-                            onRemove={onRemove}
-                            onReUpload={onReUpload}
-                            onImageLinkLoadSuccess={onImageLinkLoadSuccess}
-                            onImageLinkLoadError={onImageLinkLoadError}
-                          />
-                        )
-                      }
-                      {
-                        fileConfig && attachmentFiles.length > 0 && (
-                          <div className='max-w-full overflow-visible'>
-                            <FileUploaderInAttachmentWrapper
-                              fileConfig={fileConfig}
-                              value={attachmentFiles}
-                              onChange={setAttachmentFiles}
-                              listOnly
-                            />
-                          </div>
-                        )
-                      }
-                    </div>
-                  )
-                }
-                <Textarea
-                  className={`
+                  <Textarea
+                    className={`
                     relative top-[2px] block w-full pl-[50px] pr-[52px] py-1.5 text-base text-gray-700 bg-transparent outline-none appearance-none resize-none leading-relaxed
                   `}
-                  style={{ minHeight: '48px', maxHeight: '200px' }}
-                  value={query}
-                  onChange={handleContentChange}
-                  onKeyUp={handleKeyUp}
-                  onKeyDown={handleKeyDown}
-                  autoSize={{ minRows: 1, maxRows: 8 }}
-                  placeholder={inputPlaceholder}
-                />
-                <div className={cn(s.composerRightActions, hasAttachments && s.composerActionsWithAttachments)}>
-                  <Tooltip
-                    selector='send-tip'
-                    htmlContent={
-                      <div>
-                        <div>{t('common.operation.send')} Enter</div>
-                        <div>{t('common.operation.lineBreak')} Shift Enter</div>
-                      </div>
-                    }
-                  >
-                    <button
-                      type='button'
-                      aria-label={t('common.operation.send') as string}
-                      className={cn(s.sendButton, query.trim() && s.sendButtonActive)}
-                      onClick={handleSend}
+                    style={{ minHeight: '48px', maxHeight: '200px' }}
+                    value={query}
+                    onChange={handleContentChange}
+                    onKeyUp={handleKeyUp}
+                    onKeyDown={handleKeyDown}
+                    autoSize={{ minRows: 1, maxRows: 8 }}
+                    placeholder={inputPlaceholder}
+                  />
+                  <div className={cn(s.composerRightActions, hasAttachments && s.composerActionsWithAttachments)}>
+                    <Tooltip
+                      selector='send-tip'
+                      htmlContent={
+                        <div>
+                          <div>{t('common.operation.send')} Enter</div>
+                          <div>{t('common.operation.lineBreak')} Shift Enter</div>
+                        </div>
+                      }
                     >
-                      <PaperAirplaneIcon className='h-5 w-5' aria-hidden='true' />
-                    </button>
-                  </Tooltip>
+                      <button
+                        type='button'
+                        aria-label={t('common.operation.send') as string}
+                        className={cn(s.sendButton, query.trim() && s.sendButtonActive)}
+                        onClick={handleSend}
+                      >
+                        <PaperAirplaneIcon className='h-5 w-5' aria-hidden='true' />
+                      </button>
+                    </Tooltip>
+                  </div>
                 </div>
-              </div>
+              </FileContextProvider>
+              {isWelcomeState && suggestedQuestions.length > 0 && (
+                <div className={s.suggestedQuestions}>
+                  {suggestedQuestions.map((suggestion, index) => (
+                    <button
+                      key={`${suggestion}-${index}`}
+                      type='button'
+                      className={s.suggestedQuestion}
+                      onClick={() => suggestionClick(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )

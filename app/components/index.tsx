@@ -1,5 +1,6 @@
 'use client'
 import type { FC } from 'react'
+import Image from 'next/image'
 import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import produce, { setAutoFreeze } from 'immer'
@@ -33,6 +34,48 @@ const Main: FC<IMainProps> = () => {
   const media = useBreakpoints()
   const isMobile = media === MediaType.mobile
   const hasSetAppConfig = APP_ID && API_KEY
+  const [isWindowMinimized, setIsWindowMinimized] = useState(false)
+  const [isWindowClosed, setIsWindowClosed] = useState(false)
+  const [isWindowMaximized, setIsWindowMaximized] = useState(false)
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsWindowMaximized(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  const handleMinimizeWindow = async () => {
+    if (isWindowMinimized) {
+      setIsWindowMinimized(false)
+      return
+    }
+    try {
+      if (document.fullscreenElement) { await document.exitFullscreen() }
+    }
+    finally {
+      setIsWindowMinimized(true)
+    }
+  }
+
+  const handleToggleMaximizeWindow = async () => {
+    setIsWindowMinimized(false)
+    try {
+      if (document.fullscreenElement) { await document.exitFullscreen() }
+      else { await document.documentElement.requestFullscreen() }
+    }
+    catch {
+      setIsWindowMaximized(false)
+    }
+  }
+
+  const handleCloseWindow = async () => {
+    try {
+      if (document.fullscreenElement) { await document.exitFullscreen() }
+    }
+    finally {
+      setIsWindowClosed(true)
+    }
+  }
 
   /*
   * app info
@@ -105,8 +148,7 @@ const Main: FC<IMainProps> = () => {
     setConversationIdChangeBecauseOfNew(true)
     setCurrInputs(inputs)
     setChatStarted()
-    // parse variables in introduction
-    setChatList(generateNewChatListWithOpenStatement('', inputs))
+    setChatList([])
   }
   const hasSetInputs = (() => {
     if (!isNewConversation) { return true }
@@ -151,7 +193,7 @@ const Main: FC<IMainProps> = () => {
         if (getCurrConversationId() !== requestedConversationId) { return }
 
         const { data } = res
-        const newChatList: ChatItem[] = generateNewChatListWithOpenStatement(notSyncToStateIntroduction, notSyncToStateInputs)
+        const newChatList: ChatItem[] = []
 
         data.forEach((item: any) => {
           newChatList.push({
@@ -175,7 +217,7 @@ const Main: FC<IMainProps> = () => {
     }
 
     if (isNewConversation) {
-      setChatList(generateNewChatListWithOpenStatement('', newConversationInputs))
+      setChatList([])
     }
   }
   // Conversation hydration is intentionally driven by identity changes only.
@@ -218,7 +260,11 @@ const Main: FC<IMainProps> = () => {
   // user can not edit inputs if user had send message
   const canEditInputs = !chatList.some(item => item.isAnswer === false) && isNewConversation
   const hasConversationMessages = chatList.length > 0
-  const isGeminiEmptyState = hasSetInputs && !hasConversationMessages
+  const isGeminiEmptyState = hasSetInputs && isNewConversation && !hasConversationMessages
+  let welcomeIntroduction = conversationIntroduction
+  if (welcomeIntroduction && currInputs) {
+    welcomeIntroduction = replaceVarWithValues(welcomeIntroduction, promptConfig?.prompt_variables || [], currInputs)
+  }
   const createNewChat = () => {
     // if new chat is already exist, do not create new chat
     if (conversationList.some(item => item.id === '-1')) { return }
@@ -232,25 +278,6 @@ const Main: FC<IMainProps> = () => {
         suggested_questions: suggestedQuestions,
       })
     }))
-  }
-
-  // sometime introduction is not applied to state
-  const generateNewChatListWithOpenStatement = (introduction?: string, inputs?: Record<string, any> | null) => {
-    let calculatedIntroduction = introduction || conversationIntroduction || ''
-    const calculatedPromptVariables = inputs || currInputs || null
-    if (calculatedIntroduction && calculatedPromptVariables) { calculatedIntroduction = replaceVarWithValues(calculatedIntroduction, promptConfig?.prompt_variables || [], calculatedPromptVariables) }
-
-    const openStatement = {
-      id: `${Date.now()}`,
-      content: calculatedIntroduction,
-      isAnswer: true,
-      feedbackDisabled: true,
-      isOpeningStatement: isShowPrompt,
-      suggestedQuestions,
-    }
-    if (calculatedIntroduction) { return [openStatement] }
-
-    return []
   }
 
   // init
@@ -700,15 +727,46 @@ const Main: FC<IMainProps> = () => {
 
   if (!APP_ID || !APP_INFO || !promptConfig) { return <Loading type='app' /> }
 
+  if (isWindowClosed) {
+    return (
+      <div className='flex h-screen items-start bg-slate-200 p-3'>
+        <button
+          type='button'
+          className='group flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-lg shadow-slate-500/10 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:text-blue-700 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/40'
+          onClick={() => {
+            setIsWindowClosed(false)
+            setIsWindowMinimized(false)
+          }}
+        >
+          <Image
+            src='/favicon.ico'
+            alt=''
+            width={32}
+            height={32}
+            unoptimized
+            className='h-8 w-8 object-contain'
+            aria-hidden='true'
+          />
+          重新打开 {APP_INFO.title}
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className='bg-gray-100'>
+    <div className='h-screen overflow-hidden bg-slate-200'>
       <Header
         title={APP_INFO.title}
         isMobile={isMobile}
         onShowSideBar={showSidebar}
         onCreateNewChat={() => handleConversationIdChange('-1')}
+        onMinimizeWindow={handleMinimizeWindow}
+        onToggleMaximizeWindow={handleToggleMaximizeWindow}
+        onCloseWindow={handleCloseWindow}
+        isWindowMaximized={isWindowMaximized}
+        isWindowMinimized={isWindowMinimized}
       />
-      <div className="flex rounded-t-2xl bg-white overflow-hidden">
+      {!isWindowMinimized && <div className='flex bg-white overflow-hidden'>
         {/* sidebar */}
         {!isMobile && renderSidebar()}
         {isMobile && isShowSidebar && (
@@ -720,6 +778,18 @@ const Main: FC<IMainProps> = () => {
         )}
         {/* main */}
         <div className={`${s.mainSurface} ${isGeminiEmptyState ? s.mainSurfaceEmpty : ''} flex-grow flex flex-col h-[calc(100vh_-_3rem)] overflow-y-auto`}>
+          <div className={s.contentBrand}>
+            <Image
+              src='/favicon.ico'
+              alt=''
+              width={32}
+              height={32}
+              unoptimized
+              className={s.contentBrandIcon}
+              aria-hidden='true'
+            />
+            <span className={s.contentBrandTitle}>{APP_INFO.title}</span>
+          </div>
           <ConfigSence
             conversationName={conversationName}
             hasSetInputs={hasSetInputs}
@@ -743,11 +813,14 @@ const Main: FC<IMainProps> = () => {
                   checkCanSend={checkCanSend}
                   visionConfig={visionConfig}
                   fileConfig={fileConfig}
+                  isWelcomeState={isGeminiEmptyState}
+                  openingStatement={welcomeIntroduction}
+                  suggestedQuestions={suggestedQuestions}
                 />
               </div>)
           }
         </div>
-      </div>
+      </div>}
     </div>
   )
 }

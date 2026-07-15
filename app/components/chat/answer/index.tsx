@@ -6,7 +6,6 @@ import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline'
 import React from 'react'
 import copy from 'copy-to-clipboard'
 import { useTranslation } from 'react-i18next'
-import Button from '@/app/components/base/button'
 import StreamdownMarkdown from '@/app/components/base/streamdown-markdown'
 import Tooltip from '@/app/components/base/tooltip'
 import WorkflowProcess from '@/app/components/workflow/workflow-process'
@@ -31,17 +30,15 @@ interface IAnswerProps {
   item: ChatItem
   isResponding?: boolean
   allToolIcons?: Record<string, string | Emoji>
-  suggestionClick?: (suggestion: string) => void
 }
 
 const Answer: FC<IAnswerProps> = ({
   item,
   isResponding,
   allToolIcons,
-  suggestionClick = () => { },
 }) => {
   const { t } = useTranslation()
-  const { id, content, agent_thoughts, workflowProcess, suggestedQuestions = [] } = item
+  const { id, content, agent_thoughts, workflowProcess } = item
   const isAgentMode = !!agent_thoughts && agent_thoughts.length > 0
   const [isCopied, setIsCopied] = React.useState(false)
   const copyResetTimerRef = React.useRef<ReturnType<typeof globalThis.setTimeout> | null>(null)
@@ -113,17 +110,6 @@ const Answer: FC<IAnswerProps> = ({
               : (isAgentMode
                 ? agentModeAnswer
                 : <StreamdownMarkdown content={content} />)}
-            {suggestedQuestions.length > 0 && (
-              <div className='mt-3'>
-                <div className='mt-1 flex flex-wrap gap-1'>
-                  {suggestedQuestions.map((suggestion, index) => (
-                    <div key={index} className='flex items-center gap-1'>
-                      <Button className='text-base' type='link' onClick={() => suggestionClick(suggestion)}>{suggestion}</Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
           {copyText && (
             <div className='mt-2 flex min-h-8 flex-row items-center gap-1'>
