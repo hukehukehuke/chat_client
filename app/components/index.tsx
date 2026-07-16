@@ -23,6 +23,7 @@ import AppUnavailable from '@/app/components/app-unavailable'
 import { API_KEY, APP_ID, APP_INFO, isShowPrompt, promptTemplate } from '@/config'
 import type { Annotation as AnnotationType } from '@/types/log'
 import { addFileInfos, sortAgentSorts } from '@/utils/tools'
+import { useIframeContext, iframeEvents } from '@/components/iframe/IframeProvider'
 import s from './style.module.css'
 
 export interface IMainProps {
@@ -34,15 +35,35 @@ const Main: FC<IMainProps> = () => {
   const media = useBreakpoints()
   const isMobile = media === MediaType.mobile
   const hasSetAppConfig = APP_ID && API_KEY
+  const { isEmbedded, trackMessage, sendEvent, registerHandler } = useIframeContext()
   const [isWindowMinimized, setIsWindowMinimized] = useState(false)
   const [isWindowClosed, setIsWindowClosed] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
+  const [isRequirementSummaryComplete, setIsRequirementSummaryComplete] = useState(false)
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsWindowMaximized(!!document.fullscreenElement)
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
+
+  // Register init handler for iframe embedding - reset state on new conversation
+  useEffect(() => {
+    if (!isEmbedded) { return }
+
+    registerHandler('init', () => {
+      // Just reset conversation state - let Dify workflow provide the opening statement
+      setChatList([])
+      setChatResetKey(prev => prev + 1)
+      setIsRequirementSummaryComplete(false)
+      setChatNotStarted()
+      setConversationIdChangeBecauseOfNew(true)
+      // Clear inputs for new conversation
+      setCurrInputs({} as Record<string, any>)
+      // Set conversation ID to -1 (new conversation)
+      setCurrConversationId('-1', APP_ID)
+    })
+  }, [isEmbedded, registerHandler])
 
   const handleMinimizeWindow = async () => {
     if (isWindowMinimized) {
@@ -338,6 +359,7 @@ const Main: FC<IMainProps> = () => {
 
         if (isNotNewConversation) { setCurrConversationId(_conversationId, APP_ID, false) }
 
+        // Keep the introduction from Dify - do NOT override it
         setInited(true)
       }
       catch (e: any) {
@@ -416,6 +438,11 @@ const Main: FC<IMainProps> = () => {
       return
     }
 
+    // Reset requirement summary completion when user sends a new message
+    if (isEmbedded) {
+      setIsRequirementSummaryComplete(false)
+    }
+
     // The no-variable flow no longer needs a separate "start chat" click,
     // so initialise the virtual conversation on the first actual message.
     if (isNewConversation && !isChatStarted) {
@@ -461,6 +488,11 @@ const Main: FC<IMainProps> = () => {
       content: message,
       isAnswer: false,
       message_files: (files || []).filter((f: any) => f.type === 'image'),
+    }
+
+    // Track user message for iframe embedding
+    if (isEmbedded) {
+      trackMessage('user', message)
     }
 
     const placeholderAnswerId = `answer-placeholder-${Date.now()}`
@@ -621,6 +653,10 @@ const Main: FC<IMainProps> = () => {
           setChatList(newListWithAnswer)
           return
         }
+        // Track AI response for iframe embedding
+        if (isEmbedded && responseItem.content) {
+          trackMessage('assistant', responseItem.content)
+        }
         // not support show citation
         // responseItem.citation = messageEnd.retriever_resources
         const newListWithAnswer = produce(
@@ -632,6 +668,13 @@ const Main: FC<IMainProps> = () => {
           },
         )
         setChatList(newListWithAnswer)
+
+        // Check if AI has generated requirement summary AFTER updating chat list
+        if (isEmbedded && responseItem.content) {
+          if (responseItem.content.includes('需求总结') || responseItem.content.includes('需求内容') || responseItem.content.includes('总结') || responseItem.content.includes('确认')) {
+            setIsRequirementSummaryComplete(true)
+          }
+        }
       },
       onMessageReplace: (messageReplace) => {
         if (!isCurrentResponse()) { return }
@@ -758,6 +801,7 @@ const Main: FC<IMainProps> = () => {
       <Header
         title={APP_INFO.title}
         isMobile={isMobile}
+        isEmbedded={isEmbedded}
         onShowSideBar={showSidebar}
         onCreateNewChat={() => handleConversationIdChange('-1')}
         onMinimizeWindow={handleMinimizeWindow}
@@ -767,8 +811,8 @@ const Main: FC<IMainProps> = () => {
         isWindowMinimized={isWindowMinimized}
       />
       {!isWindowMinimized && <div className='flex bg-white overflow-hidden'>
-        {/* sidebar */}
-        {!isMobile && renderSidebar()}
+        {/* sidebar - hidden when embedded */}
+        {!isMobile && !isEmbedded && renderSidebar()}
         {isMobile && isShowSidebar && (
           <div className='fixed inset-0 z-50' style={{ backgroundColor: 'rgba(35, 56, 118, 0.2)' }} onClick={hideSidebar} >
             <div className='inline-block' onClick={e => e.stopPropagation()}>
@@ -779,28 +823,34 @@ const Main: FC<IMainProps> = () => {
         {/* main */}
         <div className={`${s.mainSurface} ${isGeminiEmptyState ? s.mainSurfaceEmpty : ''} flex-grow flex flex-col h-[calc(100vh_-_3rem)] overflow-y-auto`}>
           <div className={s.contentBrand}>
-            <Image
-              src='/favicon.ico'
-              alt=''
-              width={32}
-              height={32}
-              unoptimized
-              className={s.contentBrandIcon}
-              aria-hidden='true'
-            />
-            <span className={s.contentBrandTitle}>{APP_INFO.title}</span>
+            {!isEmbedded && (
+              <>
+                <Image
+                  src='/favicon.ico'
+                  alt=''
+                  width={32}
+                  height={32}
+                  unoptimized
+                  className={s.contentBrandIcon}
+                  aria-hidden='true'
+                />
+                <span className={s.contentBrandTitle}>{APP_INFO.title}</span>
+              </>
+            )}
           </div>
-          <ConfigSence
-            conversationName={conversationName}
-            hasSetInputs={hasSetInputs}
-            isPublicVersion={isShowPrompt}
-            siteInfo={APP_INFO}
-            promptConfig={promptConfig}
-            onStartChat={handleStartChat}
-            canEditInputs={canEditInputs}
-            savedInputs={currInputs as Record<string, any>}
-            onInputsChange={setCurrInputs}
-          ></ConfigSence>
+          {!isEmbedded && (
+            <ConfigSence
+              conversationName={conversationName}
+              hasSetInputs={hasSetInputs}
+              isPublicVersion={isShowPrompt}
+              siteInfo={APP_INFO}
+              promptConfig={promptConfig}
+              onStartChat={handleStartChat}
+              canEditInputs={canEditInputs}
+              savedInputs={currInputs as Record<string, any>}
+              onInputsChange={setCurrInputs}
+            ></ConfigSence>
+          )}
 
           {
             hasSetInputs && (
@@ -816,6 +866,12 @@ const Main: FC<IMainProps> = () => {
                   isWelcomeState={isGeminiEmptyState}
                   openingStatement={welcomeIntroduction}
                   suggestedQuestions={suggestedQuestions}
+                  isEmbedded={isEmbedded}
+                  isRequirementSummaryComplete={isRequirementSummaryComplete}
+                  onSubmitRequirement={(transcript) => {
+                    // Send conversationEnded event with transcript to parent
+                    sendEvent(iframeEvents.conversationEnded(transcript))
+                  }}
                 />
               </div>)
           }

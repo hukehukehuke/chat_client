@@ -12,10 +12,12 @@ import {
   StopIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+import s from './style.module.css'
 
 export interface IHeaderProps {
   title: string
   isMobile?: boolean
+  isEmbedded?: boolean
   onShowSideBar?: () => void
   onCreateNewChat?: () => void
   onMinimizeWindow?: () => void
@@ -28,6 +30,7 @@ export interface IHeaderProps {
 const Header: FC<IHeaderProps> = ({
   title,
   isMobile,
+  isEmbedded,
   onShowSideBar,
   onCreateNewChat,
   onMinimizeWindow,
@@ -63,6 +66,16 @@ const Header: FC<IHeaderProps> = ({
             </div>
           </>
         )}
+        {isEmbedded && !isMobile && (
+          <div className={s.embeddedLogo}>
+            <span className={s.logoIcon}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                <path d="M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2zm-3 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm6 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-3 3a3 3 0 0 0-3 3v1h6v-1a3 3 0 0 0-3-3z"/>
+              </svg>
+            </span>
+            <span className={s.logoText}>AI智能助手</span>
+          </div>
+        )}
       </div>
       {isMobile
         ? (
@@ -76,7 +89,12 @@ const Header: FC<IHeaderProps> = ({
           </button>
         )
         : (
-          <div className='flex h-full items-center' role='group' aria-label='窗口控制'>
+          <div className='flex h-full items-center gap-2' role='group' aria-label='窗口控制'>
+            {isEmbedded && (
+              <span className={s.aiStatusBadge}>
+                ⚡️ AI在线
+              </span>
+            )}
             <button
               type='button'
               title={isWindowMinimized ? '展开' : '最小化'}

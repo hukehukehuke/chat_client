@@ -35,6 +35,19 @@ export interface IChatProps {
   isWelcomeState?: boolean
   openingStatement?: string
   suggestedQuestions?: string[]
+  /**
+   * Whether the chat is embedded in an iframe (for requirement ticket)
+   */
+  isEmbedded?: boolean
+  /**
+   * Callback when user clicks "Confirm and Submit" button in embedded mode
+   */
+  onSubmitRequirement?: (transcript: string) => void
+  /**
+   * Whether AI has completed generating the requirement summary
+   * When true, the submission section will be shown
+   */
+  isRequirementSummaryComplete?: boolean
 }
 
 const getOpeningHeadline = (openingStatement: string) => {
@@ -58,6 +71,9 @@ const Chat: FC<IChatProps> = ({
   isWelcomeState = false,
   openingStatement = '',
   suggestedQuestions = [],
+  isEmbedded = false,
+  onSubmitRequirement,
+  isRequirementSummaryComplete = false,
 }) => {
   const { t } = useTranslation()
   const { notify } = Toast
@@ -151,10 +167,24 @@ const Chat: FC<IChatProps> = ({
     handleSend()
   }
 
+  const buildTranscript = () => {
+    return chatList
+      .map((item) => {
+        const prefix = item.isAnswer ? '【AI】' : '【用户】'
+        return `${prefix}${item.content}`
+      })
+      .join('\n\n')
+  }
+
+  const handleEndConversation = () => {
+    const transcript = buildTranscript()
+    onSubmitRequirement?.(transcript)
+  }
+
   return (
-    <div className={cn('px-3.5', s.chatRoot)}>
+    <div className={cn(isEmbedded ? s.chatRootEmbedded : s.chatRoot)}>
       {/* Chat List */}
-      <div className={cn('h-full space-y-10 pt-8 tablet:pt-10', isWelcomeState && s.emptyChatList)}>
+      <div className={cn('overflow-y-auto space-y-10 pt-8 tablet:pt-10', isWelcomeState && s.emptyChatList, isEmbedded ? 'px-0' : 'px-3.5', !isEmbedded && chatList.length === 0 && 'hidden')}>
         {chatList.map((item) => {
           if (item.isAnswer) {
             const isLast = item.id === chatList[chatList.length - 1].id
@@ -172,31 +202,132 @@ const Chat: FC<IChatProps> = ({
             />
           )
         })}
+
+        {/* Welcome content for embedded mode - shown as first message when no messages */}
+        {isEmbedded && chatList.length === 0 && openingStatement && (
+          <div className={s.welcomeMessageEmbedded}>
+            <div className={s.welcomeIcon}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+                <path d="M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2zm-3 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm6 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-3 3a3 3 0 0 0-3 3v1h6v-1a3 3 0 0 0-3-3z"/>
+              </svg>
+            </div>
+            <StreamdownMarkdown content={openingStatement} />
+          </div>
+        )}
       </div>
+
+      {/* Suggested questions - shown below chat messages, above input in embedded mode */}
+      {isEmbedded && suggestedQuestions.length > 0 && (
+        <div className={s.suggestedQuestionsWrapper}>
+          <div className={s.suggestedQuestionsInner}>
+            {suggestedQuestions.map((suggestion, index) => (
+              <button
+                key={`${suggestion}-${index}`}
+                type='button'
+                className={s.suggestedQuestion}
+                onClick={() => suggestionClick(suggestion)}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Submission section - shown when AI has completed requirement summary */}
+      {isEmbedded && isRequirementSummaryComplete && chatList.length > 0 && (
+        <div className={s.submissionSection}>
+          <div className={s.submissionCard}>
+            <div className={s.submissionTitle}>
+              <span>📋 需求内容</span>
+            </div>
+            <div className={s.submissionTranscript}>
+              {chatList.filter(item => item.isAnswer).pop()?.content || ''}
+            </div>
+            <div className={s.submissionActions}>
+              <button
+                type='button'
+                className={s.copyButton}
+                onClick={() => {
+                  const content = chatList.filter(item => item.isAnswer).pop()?.content || ''
+                  navigator.clipboard.writeText(content)
+                  Toast.notify({ type: 'success', message: '已复制到剪贴板' })
+                }}
+              >
+                复制内容
+              </button>
+              <button
+                type='button'
+                className={s.submitButton}
+                onClick={() => {
+                  const content = chatList.filter(item => item.isAnswer).pop()?.content || ''
+                  onSubmitRequirement?.(content)
+                }}
+              >
+                确认无误，提交需求
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suggested questions for normal mode - above input */}
+      {!isEmbedded && isWelcomeState && suggestedQuestions.length > 0 && (
+        <div className={s.suggestedQuestions}>
+          {suggestedQuestions.map((suggestion, index) => (
+            <button
+              key={`${suggestion}-${index}`}
+              type='button'
+              className={s.suggestedQuestion}
+              onClick={() => suggestionClick(suggestion)}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Welcome content for normal mode */}
+      {!isEmbedded && (
+        <section
+          className={cn(
+            s.emptyGreeting,
+            !isWelcomeState && s.emptyGreetingHidden,
+          )}
+          aria-hidden={!isWelcomeState}
+        >
+          {openingHeadline && (
+            <div className={s.openingStatement}>
+              <StreamdownMarkdown content={openingHeadline} />
+            </div>
+          )}
+        </section>
+      )}
+
       {
         !isHideSendInput && (
           <>
-            <section
-              className={cn(
-                s.emptyGreeting,
-                !isWelcomeState && s.emptyGreetingHidden,
-              )}
-              aria-hidden={!isWelcomeState}
-            >
-              {openingHeadline && (
-                <div className={s.openingStatement}>
-                  <StreamdownMarkdown content={openingHeadline} />
-                </div>
-              )}
-            </section>
+            {/* End conversation button - only show when AI is responding in embedded mode */}
+            {isEmbedded && isResponding && (
+              <div className={s.endConversationWrapper}>
+                <button
+                  type='button'
+                  className={s.endConversationButton}
+                  onClick={handleEndConversation}
+                >
+                  结束对话
+                </button>
+              </div>
+            )}
+
             <div
               className={cn(
-                s.composerPosition,
-                !isWelcomeState && s.composerDocked,
+                isEmbedded ? s.composerPositionEmbedded : s.composerPosition,
+                !isEmbedded && !isWelcomeState && s.composerDocked,
               )}
             >
               <FileContextProvider value={attachmentFiles} onChange={setAttachmentFiles}>
-                <div className={s.composerCard}>
+                <div className={cn(s.composerCard, isEmbedded && s.composerCardEmbedded)}>
                   <div className={cn(s.composerLeftActions, hasAttachments && s.composerActionsWithAttachments)}>
                     {
                       fileConfig?.enabled && (
@@ -280,20 +411,6 @@ const Chat: FC<IChatProps> = ({
                   </div>
                 </div>
               </FileContextProvider>
-              {isWelcomeState && suggestedQuestions.length > 0 && (
-                <div className={s.suggestedQuestions}>
-                  {suggestedQuestions.map((suggestion, index) => (
-                    <button
-                      key={`${suggestion}-${index}`}
-                      type='button'
-                      className={s.suggestedQuestion}
-                      onClick={() => suggestionClick(suggestion)}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </>
         )

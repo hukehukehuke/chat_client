@@ -67,6 +67,20 @@
   white-space: nowrap;
 }
 
+.aiStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #F6FFED;
+  color: #52C41A;
+  border: 1px solid #B7EB8F;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
 .chatContent {
   position: relative;
   z-index: 1;

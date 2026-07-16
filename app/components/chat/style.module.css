@@ -2,8 +2,14 @@
   height: 100%;
 }
 
-.emptyChatList {
-  pointer-events: none;
+/* Embedded mode container */
+.chatRootEmbedded {
+  height: 100%;
+  min-height: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .emptyGreeting {
@@ -19,6 +25,45 @@
   transition:
     opacity 220ms ease,
     transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Welcome message embedded - shown as first message in chat list */
+.welcomeMessageEmbedded {
+  width: 100%;
+  max-width: var(--chat-composer-max-width, 800px);
+  margin: 0 auto;
+  padding: 20px 14px;
+  text-align: center;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #374151;
+}
+
+.welcomeIcon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+  color: #6b7280;
+}
+
+.welcomeMessageEmbedded :global(p) {
+  margin: 0;
+}
+
+/* Suggested questions wrapper - positioned between chat list and input */
+.suggestedQuestionsWrapper {
+  width: 100%;
+  max-width: var(--chat-composer-max-width, 800px);
+  margin: 0 auto;
+  padding: 0 14px;
+}
+
+.suggestedQuestionsInner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
 }
 
 .openingStatement {
@@ -52,6 +97,57 @@
   transform: translate(-50%, -50%);
   transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
+}
+
+/* Embedded mode - use relative positioning inside iframe */
+.composerPositionEmbedded {
+  position: relative;
+  top: auto;
+  left: auto;
+  z-index: 20;
+  width: 100%;
+  max-width: var(--chat-composer-max-width, 800px);
+  margin: 0 auto;
+  padding: 12px 14px;
+  pointer-events: auto;
+  transform: none;
+}
+
+/* Embedded mode - composer card */
+.composerCardEmbedded {
+  border-radius: 16px;
+  padding: 12px 16px;
+}
+
+/* End conversation button wrapper - above greeting */
+.endConversationWrapper {
+  position: relative;
+  width: 100%;
+  max-width: var(--chat-composer-max-width, 800px);
+  margin: 0 auto;
+  padding: 16px 14px 8px;
+  display: flex;
+  justify-content: center;
+}
+
+/* End conversation button in embedded mode */
+.endConversationButton {
+  height: 36px;
+  padding: 0 20px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 200ms ease;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+}
+
+.endConversationButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
 }
 
 .composerDocked {
@@ -176,6 +272,92 @@
 
 .sendButton:hover {
   background-color: #ebf5ff;
+}
+
+/* Submission section - inline with chat output, above input */
+.submissionSection {
+  padding: 16px 14px;
+  margin-top: 16px;
+}
+
+.submissionCard {
+  background: white;
+  border: 1px solid rgba(60, 64, 67, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(60, 64, 67, 0.08);
+  padding: 16px 20px;
+}
+
+.submissionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.submissionTranscript {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #374151;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.submissionActions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.submitButton {
+  padding: 10px 24px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 200ms ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.copyButton {
+  padding: 10px 16px;
+  background: white;
+  color: #4b5563;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 200ms ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copyButton:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
 }
 
 @media (max-width: 639px) {
