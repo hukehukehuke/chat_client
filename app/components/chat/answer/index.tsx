@@ -92,9 +92,14 @@ const Answer: FC<IAnswerProps> = ({
   )
 
   return (
-    <div className='w-full'>
-      <div className='w-full min-w-0'>
-        <div className='text-base leading-8 text-[#1f1f1f] tablet:text-[18px]'>
+    <div className='w-full flex items-start gap-3'>
+      {/* AI Avatar */}
+      <div className='w-8 h-8 rounded-lg bg-gradient-to-br from-[#6A11CB] to-[#2575FC] flex items-center justify-center flex-shrink-0'>
+        <span className='text-white text-[11px] font-bold'>AI</span>
+      </div>
+      {/* AI Bubble */}
+      <div className='flex-1 max-w-[75%]'>
+        <div className='bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 text-[#1f1f1f]'>
           <div className='min-w-0 break-words'>
             {workflowProcess && (
               <div className='mb-3'>

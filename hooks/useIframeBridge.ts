@@ -16,6 +16,7 @@ export type IframeEvent
     | { type: 'conversationListUpdated', payload: { conversations: Array<{ id: string, name: string }> } }
     | { type: 'error', payload: { code: string, message: string } }
     | { type: 'conversationEnded', payload: { content: string } }
+    | { type: 'backToParent' }
 
 interface UseIframeBridgeOptions {
   onCommand?: (command: IframeCommand) => void
@@ -99,4 +100,5 @@ export const iframeEvents = {
   conversationListUpdated: (conversations: Array<{ id: string, name: string }>) => ({ type: 'conversationListUpdated' as const, payload: { conversations } }),
   error: (code: string, message: string) => ({ type: 'error' as const, payload: { code, message } }),
   conversationEnded: (content: string) => ({ type: 'conversationEnded' as const, payload: { content } }),
+  backToParent: () => ({ type: 'backToParent' as const }),
 }

@@ -61,12 +61,43 @@ export function IframeProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const buildTranscript = useCallback(() => {
-    return messagesRef.current
-      .map((msg) => {
-        const prefix = msg.role === 'user' ? '【用户】' : '【AI】'
-        return `${prefix}${msg.content}`
-      })
-      .join('\n\n')
+    // 只提取最后一条 AI 回复的 detail 字段值
+    const lastAiMessage = [...messagesRef.current].reverse().find(msg => msg.role === 'assistant')
+    if (lastAiMessage) {
+      const content = lastAiMessage.content
+
+      // 方法1：直接提取 "detail": "xxx" 中的值
+      const detailMatch = content.match(/"detail"\s*:\s*"([\s\S]*?)"(?=\s*[,\}])/m)
+      if (detailMatch && detailMatch[1]) {
+        return detailMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .trim()
+      }
+
+      // 方法2：如果方法1失败，尝试完整 JSON 解析
+      try {
+        // 提取 JSON 对象（从 { 开始到最后一个 }）
+        const jsonStart = content.indexOf('{')
+        const jsonEnd = content.lastIndexOf('}')
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          const jsonStr = content.substring(jsonStart, jsonEnd + 1)
+          const json = JSON.parse(jsonStr)
+          if (json.detail) {
+            return json.detail.trim()
+          }
+        }
+      } catch {
+        // JSON 解析失败，忽略
+      }
+
+      // 如果都失败，返回原内容（已过滤 thinking）
+      return content
+        .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .trim()
+    }
+    return ''
   }, [])
 
   const handleEndConversation = useCallback(() => {

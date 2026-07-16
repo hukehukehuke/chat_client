@@ -168,12 +168,43 @@ const Chat: FC<IChatProps> = ({
   }
 
   const buildTranscript = () => {
-    return chatList
-      .map((item) => {
-        const prefix = item.isAnswer ? '【AI】' : '【用户】'
-        return `${prefix}${item.content}`
-      })
-      .join('\n\n')
+    // 只提取最后一条 AI 回复的 detail 字段值
+    const lastAiMessage = [...chatList].reverse().find(item => item.isAnswer)
+    if (lastAiMessage) {
+      const content = lastAiMessage.content
+
+      // 方法1：直接提取 "detail": "xxx" 中的值
+      const detailMatch = content.match(/"detail"\s*:\s*"([\s\S]*?)"(?=\s*[,\}])/m)
+      if (detailMatch && detailMatch[1]) {
+        return detailMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"')
+          .trim()
+      }
+
+      // 方法2：如果方法1失败，尝试完整 JSON 解析
+      try {
+        // 提取 JSON 对象（从 { 开始到最后一个 }）
+        const jsonStart = content.indexOf('{')
+        const jsonEnd = content.lastIndexOf('}')
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          const jsonStr = content.substring(jsonStart, jsonEnd + 1)
+          const json = JSON.parse(jsonStr)
+          if (json.detail) {
+            return json.detail.trim()
+          }
+        }
+      } catch {
+        // JSON 解析失败，忽略
+      }
+
+      // 如果都失败，返回原内容（已过滤 thinking）
+      return content
+        .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .trim()
+    }
+    return ''
   }
 
   const handleEndConversation = () => {
@@ -242,14 +273,37 @@ const Chat: FC<IChatProps> = ({
               <span>📋 需求内容</span>
             </div>
             <div className={s.submissionTranscript}>
-              {chatList.filter(item => item.isAnswer).pop()?.content || ''}
+              {(() => {
+                const lastAiMessage = [...chatList].reverse().find(item => item.isAnswer)
+                if (!lastAiMessage) { return '' }
+                const content = lastAiMessage.content
+                // 提取 detail 字段值
+                const detailMatch = content.match(/"detail"\s*:\s*"([\s\S]*?)"(?=\s*[,\}])/m)
+                if (detailMatch && detailMatch[1]) {
+                  return detailMatch[1]
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\"/g, '"')
+                    .trim()
+                }
+                // 兜底：过滤 thinking 后返回
+                return content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim()
+              })()}
             </div>
             <div className={s.submissionActions}>
               <button
                 type='button'
                 className={s.copyButton}
                 onClick={() => {
-                  const content = chatList.filter(item => item.isAnswer).pop()?.content || ''
+                  const lastAiMessage = [...chatList].reverse().find(item => item.isAnswer)
+                  let content = ''
+                  if (lastAiMessage) {
+                    const detailMatch = lastAiMessage.content.match(/"detail"\s*:\s*"([\s\S]*?)"(?=\s*[,\}])/m)
+                    if (detailMatch && detailMatch[1]) {
+                      content = detailMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim()
+                    } else {
+                      content = lastAiMessage.content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim()
+                    }
+                  }
                   navigator.clipboard.writeText(content)
                   Toast.notify({ type: 'success', message: '已复制到剪贴板' })
                 }}
@@ -260,7 +314,16 @@ const Chat: FC<IChatProps> = ({
                 type='button'
                 className={s.submitButton}
                 onClick={() => {
-                  const content = chatList.filter(item => item.isAnswer).pop()?.content || ''
+                  const lastAiMessage = [...chatList].reverse().find(item => item.isAnswer)
+                  let content = ''
+                  if (lastAiMessage) {
+                    const detailMatch = lastAiMessage.content.match(/"detail"\s*:\s*"([\s\S]*?)"(?=\s*[,\}])/m)
+                    if (detailMatch && detailMatch[1]) {
+                      content = detailMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim()
+                    } else {
+                      content = lastAiMessage.content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim()
+                    }
+                  }
                   onSubmitRequirement?.(content)
                 }}
               >

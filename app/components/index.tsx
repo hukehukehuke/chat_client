@@ -63,7 +63,12 @@ const Main: FC<IMainProps> = () => {
       // Set conversation ID to -1 (new conversation)
       setCurrConversationId('-1', APP_ID)
     })
-  }, [isEmbedded, registerHandler])
+
+    // Handle back to parent - send event to close iframe without ending conversation
+    registerHandler('backToParent', () => {
+      sendEvent(iframeEvents.backToParent())
+    })
+  }, [isEmbedded, registerHandler, sendEvent])
 
   const handleMinimizeWindow = async () => {
     if (isWindowMinimized) {
@@ -95,6 +100,31 @@ const Main: FC<IMainProps> = () => {
     }
     finally {
       setIsWindowClosed(true)
+    }
+  }
+
+  // Handle back button - send event to parent to close iframe
+  const handleBack = () => {
+    if (isEmbedded) {
+      sendEvent(iframeEvents.backToParent())
+    }
+  }
+
+  // Handle end conversation - send conversationEnded event to parent
+  const handleEndConversation = () => {
+    if (isEmbedded) {
+      // Get transcript from last AI message
+      const lastAiMessage = [...chatList].reverse().find(item => item.isAnswer)
+      let transcript = ''
+      if (lastAiMessage) {
+        const detailMatch = lastAiMessage.content.match(/"detail"\s*:\s*"([\s\S]*?)"(?=\s*[,\}])/m)
+        if (detailMatch && detailMatch[1]) {
+          transcript = detailMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim()
+        } else {
+          transcript = lastAiMessage.content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim()
+        }
+      }
+      sendEvent(iframeEvents.conversationEnded(transcript))
     }
   }
 
@@ -807,6 +837,8 @@ const Main: FC<IMainProps> = () => {
         onMinimizeWindow={handleMinimizeWindow}
         onToggleMaximizeWindow={handleToggleMaximizeWindow}
         onCloseWindow={handleCloseWindow}
+        onEndConversation={handleEndConversation}
+        onBack={handleBack}
         isWindowMaximized={isWindowMaximized}
         isWindowMinimized={isWindowMinimized}
       />

@@ -11,6 +11,7 @@ import {
   Square2StackIcon,
   StopIcon,
   XMarkIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline'
 import s from './style.module.css'
 
@@ -23,6 +24,8 @@ export interface IHeaderProps {
   onMinimizeWindow?: () => void
   onToggleMaximizeWindow?: () => void
   onCloseWindow?: () => void
+  onEndConversation?: () => void
+  onBack?: () => void
   isWindowMaximized?: boolean
   isWindowMinimized?: boolean
 }
@@ -36,12 +39,14 @@ const Header: FC<IHeaderProps> = ({
   onMinimizeWindow,
   onToggleMaximizeWindow,
   onCloseWindow,
+  onEndConversation,
+  onBack,
   isWindowMaximized,
   isWindowMinimized,
 }) => {
   return (
     <header className='flex h-12 shrink-0 select-none items-center justify-between border-b border-slate-200/80 bg-slate-50/95 pl-2 pr-1'>
-      <div className='flex min-w-0 items-center'>
+      <div className='flex min-w-0 items-center' style={{ gap: '6px' }}>
         {isMobile && (
           <>
             <button
@@ -67,13 +72,20 @@ const Header: FC<IHeaderProps> = ({
           </>
         )}
         {isEmbedded && !isMobile && (
-          <div className={s.embeddedLogo}>
-            <span className={s.logoIcon}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-                <path d="M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2zm-3 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm6 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-3 3a3 3 0 0 0-3 3v1h6v-1a3 3 0 0 0-3-3z"/>
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
+            <div style={{ width: '24px', height: '24px', flexShrink: 0 }}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style={{ width: '100%', height: '100%' }}>
+                <defs>
+                  <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#6A11CB"/>
+                    <stop offset="100%" stopColor="#2575FC"/>
+                  </linearGradient>
+                </defs>
+                <rect width="32" height="32" rx="8" fill="url(#aiGrad)"/>
+                <text x="16" y="22" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" fontFamily="Arial, sans-serif">AI</text>
               </svg>
-            </span>
-            <span className={s.logoText}>AI智能助手</span>
+            </div>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', flexShrink: 0 }}>AI智能助手</span>
           </div>
         )}
       </div>
@@ -91,9 +103,20 @@ const Header: FC<IHeaderProps> = ({
         : (
           <div className='flex h-full items-center gap-2' role='group' aria-label='窗口控制'>
             {isEmbedded && (
-              <span className={s.aiStatusBadge}>
-                ⚡️ AI在线
-              </span>
+              <>
+                <span className={s.aiStatusBadge}>
+                  ⚡️ AI在线
+                </span>
+                <button
+                  type='button'
+                  title='返回'
+                  aria-label='返回'
+                  className='flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-200/70 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/40'
+                  onClick={onBack}
+                >
+                  <ArrowLeftIcon className='h-[16px] w-[16px]' />
+                </button>
+              </>
             )}
             <button
               type='button'
@@ -119,12 +142,20 @@ const Header: FC<IHeaderProps> = ({
             </button>
             <button
               type='button'
-              title='关闭'
-              aria-label='关闭窗口'
-              className='flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40'
-              onClick={onCloseWindow}
+              title={isEmbedded ? '结束对话' : '关闭'}
+              aria-label={isEmbedded ? '结束对话' : '关闭窗口'}
+              className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/40 ${isEmbedded ? 'bg-red-500 text-white hover:bg-red-600' : 'text-slate-500 hover:bg-red-500 hover:text-white'}`}
+              onClick={isEmbedded ? onEndConversation : onCloseWindow}
             >
-              <XMarkIcon className='h-[19px] w-[19px]' />
+              {isEmbedded
+                ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="19" height="19">
+                    <path d="M6 7h12v10H6V7zm1 2v8h10V9H7zm-2 2l4 4-4 4 1.5 1.5L10 14l4.5 4.5L16 17l-4-4 4-4-1.5-1.5L14 10l-4.5-4.5L8 7z"/>
+                  </svg>
+                )
+                : (
+                  <XMarkIcon className='h-[19px] w-[19px]' />
+                )}
             </button>
           </div>
         )}
